@@ -7,6 +7,8 @@ def main():
     processes = [
         Popen(["fluidsynth", "--portname", "warsztat-0"]),
         Popen(["fluidsynth", "--portname", "warsztat-1"]),
+        Popen(["fluidsynth", "--portname", "warsztat-2"]),
+        Popen(["fluidsynth", "--portname", "warsztat-3"]),
     ]
     try:
         while True:
