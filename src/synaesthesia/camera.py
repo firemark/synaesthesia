@@ -55,7 +55,7 @@ def draw(frame, width, height, x_progress, colors):
     cv.imshow("Sound", frame)
 
 
-def main():
+def _main(musicbox, is_stopped):
     cv.namedWindow("Sound", cv.WINDOW_AUTOSIZE)
     cap = cv.VideoCapture(4)
     # cap.set(cv.CAP_PROP_FRAME_WIDTH, 640)
@@ -64,14 +64,9 @@ def main():
         print("Cannot open camera", file=stderr)
         exit()
 
-    musicbox = {
-        "red": Music("warsztat-0", program=5),
-        "green": Music("warsztat-1", program=12),
-        "blue": Music("warsztat-2", program=97),
-    }
     time = 0.0
     try:
-        while True:
+        while not is_stopped.is_set():
             start = monotonic()
             ret, frame = cap.read()
             if not ret:
@@ -81,9 +76,30 @@ def main():
             if cv.waitKey(1) == ord("q"):
                 break
             time += monotonic() - start
-    except KeyboardInterrupt:
-        pass
     finally:
         # When everything done, release the capture
         cap.release()
         cv.destroyAllWindows()
+
+
+def main():
+    import threading
+    from synaesthesia.qt import window
+
+    musicbox = {
+        "red": Music("warsztat-0", program=5),
+        "green": Music("warsztat-1", program=12),
+        "blue": Music("warsztat-2", program=97),
+    }
+
+    is_stopped = threading.Event()
+    thread_cv = threading.Thread(target=_main, args=(musicbox, is_stopped))
+    thread_cv.start()
+
+    try:
+        window(musicbox)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        is_stopped.set()
+        thread_cv.join()
