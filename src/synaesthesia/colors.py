@@ -1,6 +1,7 @@
 import cv2 as cv
 import numpy as np
 import skimage as ski
+import skimage.morphology as mor
 from dataclasses import dataclass, replace
 
 
@@ -31,7 +32,7 @@ def get_colors(frame) -> dict[str, Mask]:
 
 
 def _morphology(mask):
-    mask = ski.morphology.erosion(mask, ski.morphology.disk(1))
-    mask = ski.morphology.dilation(mask, ski.morphology.disk(3))
-    mask = ski.morphology.closing(mask, ski.morphology.disk(2))
+    mask = mor.erosion(mask, ski.morphology.disk(1))
+    mask = mor.dilation(mask, ski.morphology.disk(3))
+    mask = mor.closing(mask, ski.morphology.disk(2))
     return mask

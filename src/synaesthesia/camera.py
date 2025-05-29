@@ -12,6 +12,16 @@ from synaesthesia.music import Music
 PERIOD = 3.0
 
 
+def get_camera():
+    cap = cv.VideoCapture(8)
+    cap.set(cv.CAP_PROP_FRAME_WIDTH, 424)
+    cap.set(cv.CAP_PROP_FRAME_HEIGHT, 240)
+    if not cap.isOpened():
+        print("Cannot open camera", file=stderr)
+        exit()
+    return cap
+
+
 def play(row, music: Music, id: int):
     notes_total = music.get_len_notes()
     span = len(row) / notes_total
@@ -25,7 +35,7 @@ def play(row, music: Music, id: int):
 
 
 def loop(time, frame, musicbox):
-    frame = cv.flip(frame, -1)
+    #frame = cv.flip(frame, -1)
     progress = fmod(time, PERIOD) / PERIOD
     height, width = frame.shape[0:2]
 
@@ -56,13 +66,8 @@ def draw(frame, width, height, x_progress, colors):
 
 
 def _main(musicbox, is_stopped):
-    cv.namedWindow("Sound", cv.WINDOW_AUTOSIZE)
-    cap = cv.VideoCapture(4)
-    # cap.set(cv.CAP_PROP_FRAME_WIDTH, 640)
-    # cap.set(cv.CAP_PROP_FRAME_HEIGHT, 480)
-    if not cap.isOpened():
-        print("Cannot open camera", file=stderr)
-        exit()
+    cv.namedWindow("Sound", cv.WINDOW_NORMAL)
+    cap = get_camera()
 
     time = 0.0
     try:
@@ -73,8 +78,8 @@ def _main(musicbox, is_stopped):
                 break
 
             loop(time, frame, musicbox)
-            if cv.waitKey(1) == ord("q"):
-                break
+            #if cv.waitKey(1) == ord("q"):
+            #    break
             time += monotonic() - start
     finally:
         # When everything done, release the capture
