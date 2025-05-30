@@ -9,6 +9,14 @@ from synaesthesia.colors import get_colors
 from synaesthesia.music import Music, MusicBox
 
 
+class Crop:
+    def __init__(self):
+        self.step = 0
+        self.p0 = (0, 0)
+        self.p1 = (0, 0)
+
+
+
 def get_camera():
     cap = cv.VideoCapture(4)
     cap.set(cv.CAP_PROP_FRAME_WIDTH, 424)
@@ -69,8 +77,21 @@ def draw(frame, width, height, x_progress, colors):
     cv.imshow("Sound", frame)
 
 
+
+
 def _main(musicbox, is_stopped):
+    crop = Crop()
+    def on_click(event, x, y, flags, params):
+        if event == cv.EVENT_LBUTTONDOWN:
+            if crop.step == 0:
+                crop.p0 = (x, y)
+                crop.step = 1
+            elif crop.step == 1:
+                crop.p1 = (x, y)
+                crop.step = 2
+
     cv.namedWindow("Sound", cv.WINDOW_NORMAL)
+    cv.setMouseCallback("Sound", on_click)
     cap = get_camera()
 
     time = 0.0
@@ -78,8 +99,18 @@ def _main(musicbox, is_stopped):
         while not is_stopped.is_set():
             start = monotonic()
             ret, frame = cap.read()
+
             if not ret:
                 break
+
+            if crop.step == 2:
+                x0, y0 = crop.p0
+                x1, y1 = crop.p1
+                if x0 > x1:
+                    x0, x1 = x1, x0
+                if y0 > y1:
+                    y0, y1 = y1, y0
+                frame = frame[y0:y1, x0:x1]
 
             loop(time, frame, musicbox)
             # if cv.waitKey(1) == ord("q"):
