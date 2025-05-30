@@ -8,7 +8,6 @@ from PyQt5.QtWidgets import (
     QLabel,
     QComboBox,
     QSlider,
-    QDial,
     QHBoxLayout,
     QVBoxLayout,
     QFormLayout,
@@ -69,7 +68,7 @@ class LabelWidget(QWidget):
 
 def _make_dial(min: int, max: int, value: int, cb: Callable[[int], None]):
     def factory(parent: QWidget) -> QWidget:
-        widget = QDial(parent=parent)
+        widget = QSlider(orientation=Qt.Orientation.Horizontal, parent=parent)
         widget.setMinimum(min)
         widget.setMaximum(max)
         widget.setValue(value)
@@ -116,6 +115,8 @@ class MusicWidget(QWidget):
         self.select.setCurrentText(INSTRUMENTS[music.get_program()])
         self.select.currentTextChanged.connect(self._set_program)
 
+        value_cb = lambda v: f"{v:d}%"
+
         self.volume_slider = LabelWidget(
             "Volume",
             _make_dial(
@@ -124,7 +125,7 @@ class MusicWidget(QWidget):
                 value=int(music.get_volume() * 100),
                 cb=self._set_volume,
             ),
-            value_cb=str,
+            value_cb=value_cb,
         )
 
         self.polytouch_slider = LabelWidget(
@@ -135,7 +136,7 @@ class MusicWidget(QWidget):
                 value=int(music.get_polytouch() * 100),
                 cb=self._set_polytouch,
             ),
-            value_cb=str,
+            value_cb=value_cb,
         )
 
         self.pitch_slider = LabelWidget(
@@ -146,7 +147,7 @@ class MusicWidget(QWidget):
                 value=int(music.get_pitch() * 100),
                 cb=self._set_pitch,
             ),
-            value_cb=str,
+            value_cb=value_cb,
         )
 
         def create_effect_widget(name, id):
@@ -158,7 +159,7 @@ class MusicWidget(QWidget):
                     value=0,
                     cb=lambda v: self._music.set_effect(id, v / 100),
                 ),
-                value_cb=str,
+                value_cb=value_cb,
             )
 
         layout = QHBoxLayout()
