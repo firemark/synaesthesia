@@ -6,14 +6,11 @@ from math import fmod
 from time import monotonic
 
 from synaesthesia.colors import get_colors
-from synaesthesia.music import Music
-
-
-PERIOD = 3.0
+from synaesthesia.music import Music, MusicBox
 
 
 def get_camera():
-    cap = cv.VideoCapture(8)
+    cap = cv.VideoCapture(4)
     cap.set(cv.CAP_PROP_FRAME_WIDTH, 424)
     cap.set(cv.CAP_PROP_FRAME_HEIGHT, 240)
     if not cap.isOpened():
@@ -25,18 +22,21 @@ def get_camera():
 def play(row, music: Music, id: int):
     notes_total = music.get_len_notes()
     span = len(row) / notes_total
+    count = (row == id).sum()
     for n in range(notes_total):
         start = int(span * n)
         stop = int(span * (n + 1))
-        if np.any(row[start:stop] == id):
-            music.note_on(n)
+        if np.any(row[start:stop] == id) > 0:
+            val = count / len(row)
+            music.note_on(n, add=val)
         else:
             music.note_off(n)
 
 
-def loop(time, frame, musicbox):
-    #frame = cv.flip(frame, -1)
-    progress = fmod(time, PERIOD) / PERIOD
+def loop(time, frame, musicbox: MusicBox):
+    # frame = cv.flip(frame, -1)
+    period = musicbox.period
+    progress = fmod(time, period) / period
     height, width = frame.shape[0:2]
 
     x_progress = int((width - 1) * progress)
@@ -61,6 +61,10 @@ def draw(frame, width, height, x_progress, colors):
         frame[mask.mask] = frame[mask.mask] / 2 + mask.color / 2
     # frame[:, :, 0] = h * 255
 
+    # frame = cv.cvtColor(frame, cv.COLOR_BGR2HSV_FULL)[:, :, 1]
+    # frame[frame > 128] = 255
+    # frame[frame <= 128] = 0
+
     cv.line(frame, (x_progress, 0), (x_progress, height - 1), (0, 0, 0), 2)
     cv.imshow("Sound", frame)
 
@@ -78,7 +82,7 @@ def _main(musicbox, is_stopped):
                 break
 
             loop(time, frame, musicbox)
-            #if cv.waitKey(1) == ord("q"):
+            # if cv.waitKey(1) == ord("q"):
             #    break
             time += monotonic() - start
     finally:
@@ -90,12 +94,16 @@ def _main(musicbox, is_stopped):
 def main():
     import threading
     from synaesthesia.qt import window
+    from mido import open_output
 
-    musicbox = {
-        "red": Music("warsztat-0", program=5),
-        "green": Music("warsztat-1", program=12),
-        "blue": Music("warsztat-2", program=97),
-    }
+    port = open_output("warsztat", autoreset=True)
+    musicbox = MusicBox(
+        {
+            "red": Music(port, channel=0, program=5),
+            "green": Music(port, channel=1, program=12),
+            "blue": Music(port, channel=2, program=97),
+        }
+    )
 
     is_stopped = threading.Event()
     thread_cv = threading.Thread(target=_main, args=(musicbox, is_stopped))
