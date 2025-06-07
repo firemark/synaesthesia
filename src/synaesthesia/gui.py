@@ -1,6 +1,6 @@
 from typing import Any, Callable
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtCore import Qt, QRectF
+from PyQt5.QtGui import QImage, QPixmap, QColor
 from PyQt5.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -10,10 +10,20 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QVBoxLayout,
     QFormLayout,
+    QGraphicsView,
+    QGraphicsScene,
 )
 
 from synaesthesia.music import Music, MusicBox
 from synaesthesia.instruments import INSTRUMENTS, INSTRUMENTS_LIST, INSTRUMENTS_REVERSE
+
+
+class ImageScene(QGraphicsScene):
+
+    def mousePressEvent(self, event):
+        x = event.scenePos().x()
+        y = event.scenePos().y()
+        print(x, y)
 
 
 class MainWindow(QMainWindow):
@@ -27,8 +37,14 @@ class MainWindow(QMainWindow):
         self.main_widget = QWidget(parent=self)
         self.main_widget.setLayout(main_layout)
 
-        self.image_widget = QLabel(parent=self.main_widget)
+        self.image_scene = ImageScene()
+        self.image_widget = QGraphicsView(self.image_scene, parent=self.main_widget)
+        self.image_widget.setMinimumWidth(320)
         self.image_widget.setMinimumHeight(320)
+        self.image_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.image_widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.image_widget.setAlignment(Qt.AlignVCenter | Qt.AlignHCenter)
+        self.image_widget.setBackgroundBrush(QColor("black"))
 
         form_layout = QFormLayout()
         self.form_widget = QWidget(parent=self.main_widget)
@@ -44,15 +60,16 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.form_widget)
         self.setCentralWidget(self.main_widget)
 
+    def resizeEvent(self, ev):
+        self.image_widget.setFixedWidth(self.width() // 2)
+
     def show_image(self, frame):
         h, w, ch = frame.shape
         qt_image = QImage(frame.data, w, h, ch * w, QImage.Format_BGR888)
         pixmap = QPixmap.fromImage(qt_image)
-
-        self.image_widget.setMinimumWidth(self.width() // 2)
-        w = self.image_widget.width()
-        h = self.image_widget.height()
-        self.image_widget.setPixmap(pixmap.scaled(w, h, Qt.KeepAspectRatio))
+        self.image_scene.clear()
+        self.image_scene.addPixmap(pixmap)
+        self.image_widget.fitInView(0, 0, w, h, Qt.KeepAspectRatio)
 
 
 class LabelWidget(QWidget):
