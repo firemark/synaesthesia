@@ -10,15 +10,55 @@ from PyQt5.QtWidgets import (
     QSlider,
     QHBoxLayout,
     QVBoxLayout,
-    QFormLayout,
     QGraphicsView,
     QGraphicsScene,
     QGridLayout,
-    QSizePolicy,
 )
 
 from synaesthesia.music import Music, MusicBox
 from synaesthesia.instruments import INSTRUMENTS, INSTRUMENTS_LIST, INSTRUMENTS_REVERSE
+
+STYLE = """
+QWidget {
+    background-color: #222831;
+    color: #6EACDA;
+    font-size: 12pt;
+}
+
+QPushButton:pressed {
+    background-color: #8CCDEB;
+    color: #222831;
+}
+
+QPushButton:hover, QComboBox:hover, QSlider:hover {
+    background-color: #648DB3;
+    color: #222831;
+}
+
+*:focus {
+    background-color: #333446;
+}
+
+QComboBox:selected {
+    background-color: #27548A;
+    color: #222831;
+}
+
+QSlider::groove {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #222831, stop:1 #333446);
+    height: 8px;
+}
+
+QSlider::handle {
+    background: #8CCDEB;
+    width: 18px;
+}
+
+QSlider::sub-page {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8CCDEB, stop:1 #648DB3);
+}
+"""
+
 
 
 class ImageScene(QGraphicsScene):
@@ -53,7 +93,8 @@ class MainWindow(QMainWindow):
         self.image_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.image_widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.image_widget.setAlignment(Qt.AlignCenter)
-        self.image_widget.setBackgroundBrush(QColor("black"))
+        self.image_widget.setBackgroundBrush(QColor("#222831"))
+        self.image_widget.setStyleSheet("* {border: 0;}")
 
         form_layout = QGridLayout()
         self.form_widget = QWidget(parent=self.main_widget)
@@ -74,6 +115,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.image_widget)
         main_layout.addWidget(self.form_widget)
         self.setCentralWidget(self.main_widget)
+        self.setStyleSheet(STYLE)
 
     def resizeEvent(self, ev):
         self.image_widget.setFixedWidth(self.width() // 2)
