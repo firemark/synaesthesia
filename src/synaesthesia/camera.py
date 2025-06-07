@@ -13,15 +13,16 @@ from synaesthesia.music import Music, MusicBox
 class Crop:
     def __init__(self):
         self.step = 0
+        self.flip = 0
         self.p0 = (0, 0)
         self.p1 = (0, 0)
-
 
 
 def get_camera():
     cap = cv.VideoCapture(4)
     cap.set(cv.CAP_PROP_FRAME_WIDTH, 424)
     cap.set(cv.CAP_PROP_FRAME_HEIGHT, 240)
+    cap.set(cv.CAP_PROP_BUFFERSIZE, 3)
     if not cap.isOpened():
         print("Cannot open camera", file=stderr)
         exit()
@@ -43,7 +44,6 @@ def play(row, music: Music, id: int):
 
 
 def loop(time, frame, musicbox: MusicBox, show_image):
-    # frame = cv.flip(frame, -1)
     period = musicbox.period
     progress = fmod(time, period) / period
     height, width = frame.shape[0:2]
@@ -78,17 +78,7 @@ def draw(frame, width, height, x_progress, colors, show_image):
     show_image(frame)
 
 
-def run_thread(musicbox, is_stopped: "threading.Event", show_image: Callable[[np.ndarray], None]):
-    crop = Crop()
-    def on_click(event, x, y, flags, params):
-        if event == cv.EVENT_LBUTTONDOWN:
-            if crop.step == 0:
-                crop.p0 = (x, y)
-                crop.step = 1
-            elif crop.step == 1:
-                crop.p1 = (x, y)
-                crop.step = 2
-
+def run_thread(musicbox, crop: Crop, is_stopped: "threading.Event", show_image: Callable[[np.ndarray], None]):
     # cv.namedWindow("Sound", cv.WINDOW_NORMAL)
     # cv.setMouseCallback("Sound", on_click)
     cap = get_camera()
@@ -101,6 +91,8 @@ def run_thread(musicbox, is_stopped: "threading.Event", show_image: Callable[[np
 
             if not ret:
                 break
+
+            frame = cv.flip(frame, crop.flip)
 
             if crop.step == 2:
                 x0, y0 = crop.p0

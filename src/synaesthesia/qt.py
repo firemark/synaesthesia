@@ -1,3 +1,4 @@
+from functools import partial
 import threading
 from mido import open_output
 from PyQt5.QtCore import QObject, QThread, pyqtSignal
@@ -5,7 +6,7 @@ from PyQt5.QtWidgets import QApplication
 import numpy as np
 
 from synaesthesia.music import MusicBox, Music
-from synaesthesia.camera import run_thread
+from synaesthesia.camera import Crop, run_thread
 from synaesthesia.gui import MainWindow
 
 
@@ -14,15 +15,16 @@ class CameraWorker(QObject):
     signal_finished = pyqtSignal()
     _signal_stop = pyqtSignal()
 
-    def __init__(self, musicbox: MusicBox):
+    def __init__(self, musicbox: MusicBox, crop: Crop):
         super().__init__()
         self.progress = pyqtSignal(np.ndarray)
         self._musicbox = musicbox
+        self._crop = crop
         self._is_stopped = threading.Event()
         self._signal_stop.connect(self._stop_cb)
 
     def run(self):
-        run_thread(self._musicbox, self._is_stopped, self.signal_progress.emit)
+        run_thread(self._musicbox, self._crop, self._is_stopped, self.signal_progress.emit)
 
     def stop(self):
         self._signal_stop.emit()
@@ -30,6 +32,22 @@ class CameraWorker(QObject):
     def _stop_cb(self):
         self._is_stopped.set()
         self.signal_finished.emit()
+
+
+def on_click(crop, x: float, y: float):
+    if crop.step == 0:
+        crop.p0 = (int(x), int(y))
+        crop.step = 1
+    elif crop.step == 1:
+        crop.p1 = (int(x), int(y))
+        crop.step = 2
+    else:
+        crop.step = 0
+
+
+def on_flip(crop: Crop, flip: int):
+    crop.flip = flip
+    crop.step = 0
 
 
 def main():
@@ -42,12 +60,15 @@ def main():
         }
     )
 
+    crop = Crop()
     app = QApplication([])
     window = MainWindow(musicbox)
     thread = QThread()
-    camera_worker = CameraWorker(musicbox)
+    camera_worker = CameraWorker(musicbox, crop)
     camera_worker.moveToThread(thread)
 
+    window.signal_image_clicked.connect(partial(on_click, crop))
+    window.signal_image_flipped.connect(partial(on_flip, crop))
     camera_worker.signal_finished.connect(thread.quit)
     camera_worker.signal_progress.connect(window.show_image)
     thread.started.connect(camera_worker.run)

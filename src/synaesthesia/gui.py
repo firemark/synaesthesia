@@ -1,17 +1,20 @@
 from typing import Any, Callable
-from PyQt5.QtCore import Qt, QRectF
-from PyQt5.QtGui import QImage, QPixmap, QColor
+from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QImage, QPixmap, QColor 
 from PyQt5.QtWidgets import (
     QMainWindow,
     QWidget,
     QLabel,
     QComboBox,
+    QPushButton,
     QSlider,
     QHBoxLayout,
     QVBoxLayout,
     QFormLayout,
     QGraphicsView,
     QGraphicsScene,
+    QGridLayout,
+    QSizePolicy,
 )
 
 from synaesthesia.music import Music, MusicBox
@@ -19,14 +22,20 @@ from synaesthesia.instruments import INSTRUMENTS, INSTRUMENTS_LIST, INSTRUMENTS_
 
 
 class ImageScene(QGraphicsScene):
+    
+    def __init__(self, signal):
+        super().__init__()
+        self.signal = signal
 
     def mousePressEvent(self, event):
         x = event.scenePos().x()
         y = event.scenePos().y()
-        print(x, y)
+        self.signal.emit(x, y)
 
 
 class MainWindow(QMainWindow):
+    signal_image_clicked = pyqtSignal(float, float)
+    signal_image_flipped = pyqtSignal(int)
 
     def __init__(self, musicbox: dict[str, Music]):
         super().__init__()
@@ -37,24 +46,30 @@ class MainWindow(QMainWindow):
         self.main_widget = QWidget(parent=self)
         self.main_widget.setLayout(main_layout)
 
-        self.image_scene = ImageScene()
+        self.image_scene = ImageScene(self.signal_image_clicked)
         self.image_widget = QGraphicsView(self.image_scene, parent=self.main_widget)
         self.image_widget.setMinimumWidth(320)
         self.image_widget.setMinimumHeight(320)
         self.image_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.image_widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.image_widget.setAlignment(Qt.AlignVCenter | Qt.AlignHCenter)
+        self.image_widget.setAlignment(Qt.AlignCenter)
         self.image_widget.setBackgroundBrush(QColor("black"))
 
-        form_layout = QFormLayout()
+        form_layout = QGridLayout()
         self.form_widget = QWidget(parent=self.main_widget)
         self.form_widget.setLayout(form_layout)
 
-        form_layout.setLabelAlignment(Qt.AlignHCenter)
-        form_layout.addRow("Synaesthesia", MusicBoxWidget(musicbox, parent=self.form_widget))
-        for name, music in musicbox.items():
+        musicbox_widget = MusicBoxWidget(musicbox, self.signal_image_flipped, parent=self.form_widget)
+        form_layout.addWidget(musicbox_widget, 0, 0, 1, -1)
+
+        for index, (name, music) in enumerate(musicbox.items(), start=1):
+            label = QLabel()
+            label.setText(name)
+            label.setStyleSheet("QLabel { background-color: %s; color: black; }" % name)
+            label.setAlignment(Qt.AlignCenter)
             widget = MusicWidget(music, parent=self.form_widget)
-            form_layout.addRow(name, widget)
+            form_layout.addWidget(label, index, 0)
+            form_layout.addWidget(widget, index, 1)
 
         main_layout.addWidget(self.image_widget)
         main_layout.addWidget(self.form_widget)
@@ -95,10 +110,10 @@ class LabelWidget(QWidget):
         self.widget.valueChanged.connect(lambda v: self.value.setText(value_cb(v)))
 
         layout = QVBoxLayout()
+        layout.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.label)
         layout.addWidget(self.widget)
         layout.addWidget(self.value)
-        layout.setAlignment(Qt.AlignTop)
         self.setLayout(layout)
 
 
@@ -108,6 +123,7 @@ def _make_dial(min: int, max: int, value: int, cb: Callable[[int], None]):
         widget.setMinimum(min)
         widget.setMaximum(max)
         widget.setValue(value)
+        widget.setMinimumWidth(100)
         widget.valueChanged.connect(cb)
         return widget
 
@@ -115,10 +131,11 @@ def _make_dial(min: int, max: int, value: int, cb: Callable[[int], None]):
 
 
 class MusicBoxWidget(QWidget):
-    def __init__(self, musicbox: MusicBox, parent=None):
+    def __init__(self, musicbox: MusicBox, signal_flip, parent=None):
         super().__init__(parent)
 
         self._musicbox = musicbox
+        self.signal_flip = signal_flip
         self.period_slider = LabelWidget(
             "Period",
             _make_dial(
@@ -130,10 +147,24 @@ class MusicBoxWidget(QWidget):
             value_cb=lambda v: f"{v / 10:0.1f}s",
         )
 
-        layout = QHBoxLayout()
-        layout.addWidget(self.period_slider)
-        layout.setAlignment(Qt.AlignLeft)
-        self.setLayout(layout)
+        def make_btn(text, cb):
+            button = QPushButton()
+            button.setText(text)
+            button.clicked.connect(cb)
+            return button
+
+        def flip_emit(val):
+            return lambda: self.signal_flip.emit(val)
+
+        grid_layout = QGridLayout()
+        grid_layout.setSpacing(5)
+        grid_layout.addWidget(make_btn("No Flip", flip_emit(0)), 0, 0)
+        grid_layout.addWidget(make_btn("Flip", flip_emit(1)), 0, 1)
+        grid_layout.addWidget(make_btn("Mirror", flip_emit(-1)), 1, 0)
+        grid_layout.addWidget(make_btn("Save", flip_emit(0)), 1, 1)
+        grid_layout.addWidget(self.period_slider, 0, 3, -1, 1)
+
+        self.setLayout(grid_layout)
 
     def _set_period(self, value: int):
         self._musicbox.period = value / 10
