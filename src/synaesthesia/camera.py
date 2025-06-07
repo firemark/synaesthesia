@@ -6,7 +6,7 @@ from math import fmod
 from time import monotonic
 from typing import Callable
 
-from synaesthesia.colors import get_colors
+from synaesthesia.colors import MaskConfig, get_colors
 from synaesthesia.music import Music, MusicBox
 
 
@@ -20,8 +20,8 @@ class Crop:
 
 def get_camera():
     cap = cv.VideoCapture(4)
-    cap.set(cv.CAP_PROP_FRAME_WIDTH, 424)
-    cap.set(cv.CAP_PROP_FRAME_HEIGHT, 240)
+    cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
     cap.set(cv.CAP_PROP_BUFFERSIZE, 3)
     if not cap.isOpened():
         print("Cannot open camera", file=stderr)
@@ -43,22 +43,22 @@ def play(row, music: Music, id: int):
             music.note_off(n)
 
 
-def loop(time, frame, musicbox: MusicBox, show_image):
+def loop(time, frame, musicbox: MusicBox, colors_config: dict[str, MaskConfig], show_image):
     period = musicbox.period
     progress = fmod(time, period) / period
     height, width = frame.shape[0:2]
 
     x_progress = int((width - 1) * progress)
 
-    colors = get_colors(frame)
+    colors = get_colors(frame, colors_config)
     music_array = np.zeros(frame.shape[0:2])
     for mask in colors.values():
-        music_array[mask.mask] = mask.index
+        music_array[mask.mask] = mask.config.index
 
     for name, mask in colors.items():
         music = musicbox[name]
         row = music_array[:, x_progress]
-        play(row, music, mask.index)
+        play(row, music, mask.config.index)
 
     draw(frame, width, height, x_progress, colors, show_image)
 
@@ -67,7 +67,7 @@ def draw(frame, width, height, x_progress, colors, show_image):
     frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     frame = cv.cvtColor(frame, cv.COLOR_GRAY2BGR)
     for mask in colors.values():
-        frame[mask.mask] = frame[mask.mask] / 2 + mask.color / 2
+        frame[mask.mask] = frame[mask.mask] / 2 + mask.config.color / 2
     # frame[:, :, 0] = h * 255
 
     # frame = cv.cvtColor(frame, cv.COLOR_BGR2HSV_FULL)[:, :, 1]
@@ -78,7 +78,7 @@ def draw(frame, width, height, x_progress, colors, show_image):
     show_image(frame)
 
 
-def run_thread(musicbox, crop: Crop, is_stopped: "threading.Event", show_image: Callable[[np.ndarray], None]):
+def run_thread(musicbox, crop: Crop, colors: dict[str, MaskConfig], is_stopped: "threading.Event", show_image: Callable[[np.ndarray], None]):
     # cv.namedWindow("Sound", cv.WINDOW_NORMAL)
     # cv.setMouseCallback("Sound", on_click)
     cap = get_camera()
@@ -103,7 +103,7 @@ def run_thread(musicbox, crop: Crop, is_stopped: "threading.Event", show_image: 
                     y0, y1 = y1, y0
                 frame = frame[y0:y1, x0:x1]
 
-            loop(time, frame, musicbox, show_image)
+            loop(time, frame, musicbox, colors, show_image)
             # if cv.waitKey(1) == ord("q"):
             #    break
             time += monotonic() - start

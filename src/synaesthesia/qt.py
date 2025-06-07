@@ -5,6 +5,7 @@ from PyQt5.QtCore import QObject, QThread, pyqtSignal
 from PyQt5.QtWidgets import QApplication
 import numpy as np
 
+from synaesthesia.colors import MaskConfig
 from synaesthesia.music import MusicBox, Music
 from synaesthesia.camera import Crop, run_thread
 from synaesthesia.gui import MainWindow
@@ -15,16 +16,17 @@ class CameraWorker(QObject):
     signal_finished = pyqtSignal()
     _signal_stop = pyqtSignal()
 
-    def __init__(self, musicbox: MusicBox, crop: Crop):
+    def __init__(self, musicbox: MusicBox, crop: Crop, colors: dict[str, MaskConfig]):
         super().__init__()
         self.progress = pyqtSignal(np.ndarray)
         self._musicbox = musicbox
         self._crop = crop
+        self._colors = colors
         self._is_stopped = threading.Event()
         self._signal_stop.connect(self._stop_cb)
 
     def run(self):
-        run_thread(self._musicbox, self._crop, self._is_stopped, self.signal_progress.emit)
+        run_thread(self._musicbox, self._crop, self._colors, self._is_stopped, self.signal_progress.emit)
 
     def stop(self):
         self._signal_stop.emit()
@@ -60,11 +62,18 @@ def main():
         }
     )
 
+    colors = {
+        "red": MaskConfig(1, np.array((0, 0, 255)), h=0.9),
+        "green": MaskConfig(2, np.array((0, 255, 0)), h=0.2),
+        "blue": MaskConfig(3, np.array((255, 0, 0)), h=0.5),
+        # "yellow": MaskConfig(4, np.array((255, 255, 0)), h=0.1),
+    }
+
     crop = Crop()
     app = QApplication([])
-    window = MainWindow(musicbox)
+    window = MainWindow(musicbox, colors)
     thread = QThread()
-    camera_worker = CameraWorker(musicbox, crop)
+    camera_worker = CameraWorker(musicbox, crop, colors)
     camera_worker.moveToThread(thread)
 
     window.signal_image_clicked.connect(partial(on_click, crop))

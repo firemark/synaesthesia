@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
     QGridLayout,
 )
 
+from synaesthesia.colors import MaskConfig
 from synaesthesia.music import Music, MusicBox
 from synaesthesia.instruments import INSTRUMENTS, INSTRUMENTS_LIST, INSTRUMENTS_REVERSE
 
@@ -77,7 +78,7 @@ class MainWindow(QMainWindow):
     signal_image_clicked = pyqtSignal(float, float)
     signal_image_flipped = pyqtSignal(int)
 
-    def __init__(self, musicbox: dict[str, Music]):
+    def __init__(self, musicbox: dict[str, Music], colors: dict[str, MaskConfig]):
         super().__init__()
         self.setWindowTitle("Synaesthesia")
 
@@ -108,7 +109,7 @@ class MainWindow(QMainWindow):
             label.setText(name)
             label.setStyleSheet("QLabel { background-color: %s; color: black; }" % name)
             label.setAlignment(Qt.AlignCenter)
-            widget = MusicWidget(music, parent=self.form_widget)
+            widget = MusicWidget(music, colors[name], parent=self.form_widget)
             form_layout.addWidget(label, index, 0)
             form_layout.addWidget(widget, index, 1)
 
@@ -213,7 +214,7 @@ class MusicBoxWidget(QWidget):
 
 
 class MusicWidget(QWidget):
-    def __init__(self, music: Music, parent=None):
+    def __init__(self, music: Music, color_config: MaskConfig, parent=None):
         super().__init__(parent)
 
         self._music = music
@@ -223,6 +224,22 @@ class MusicWidget(QWidget):
             self.select.addItem(label)
         self.select.setCurrentText(INSTRUMENTS[music.get_program()])
         self.select.currentTextChanged.connect(self._set_program)
+
+        def make_dial_color(key):
+            factory = _make_dial(
+                min=0,
+                max=100,
+                value=int(getattr(color_config, key) * 100),
+                cb=lambda v: setattr(color_config, key, v / 100),
+            )
+            return factory(parent=self)
+
+
+        color_layout = QVBoxLayout()
+        color_layout.addWidget(make_dial_color("h"))
+        color_layout.addWidget(make_dial_color("v"))
+        color_layout.addWidget(make_dial_color("s"))
+        color_layout.addWidget(self.select)
 
         value_cb = lambda v: f"{v:d}%"
 
@@ -272,7 +289,7 @@ class MusicWidget(QWidget):
             )
 
         layout = QHBoxLayout()
-        layout.addWidget(self.select)
+        layout.addLayout(color_layout)
         layout.addWidget(self.volume_slider)
         layout.addWidget(self.polytouch_slider)
         layout.addWidget(self.pitch_slider)
