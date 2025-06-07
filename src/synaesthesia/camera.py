@@ -4,6 +4,7 @@ import cv2 as cv
 import numpy as np
 from math import fmod
 from time import monotonic
+from typing import Callable
 
 from synaesthesia.colors import get_colors
 from synaesthesia.music import Music, MusicBox
@@ -41,7 +42,7 @@ def play(row, music: Music, id: int):
             music.note_off(n)
 
 
-def loop(time, frame, musicbox: MusicBox):
+def loop(time, frame, musicbox: MusicBox, show_image):
     # frame = cv.flip(frame, -1)
     period = musicbox.period
     progress = fmod(time, period) / period
@@ -59,10 +60,10 @@ def loop(time, frame, musicbox: MusicBox):
         row = music_array[:, x_progress]
         play(row, music, mask.index)
 
-    draw(frame, width, height, x_progress, colors)
+    draw(frame, width, height, x_progress, colors, show_image)
 
 
-def draw(frame, width, height, x_progress, colors):
+def draw(frame, width, height, x_progress, colors, show_image):
     frame = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     frame = cv.cvtColor(frame, cv.COLOR_GRAY2BGR)
     for mask in colors.values():
@@ -74,12 +75,10 @@ def draw(frame, width, height, x_progress, colors):
     # frame[frame <= 128] = 0
 
     cv.line(frame, (x_progress, 0), (x_progress, height - 1), (0, 0, 0), 2)
-    cv.imshow("Sound", frame)
+    show_image(frame)
 
 
-
-
-def _main(musicbox, is_stopped):
+def run_thread(musicbox, is_stopped: "threading.Event", show_image: Callable[[np.ndarray], None]):
     crop = Crop()
     def on_click(event, x, y, flags, params):
         if event == cv.EVENT_LBUTTONDOWN:
@@ -90,8 +89,8 @@ def _main(musicbox, is_stopped):
                 crop.p1 = (x, y)
                 crop.step = 2
 
-    cv.namedWindow("Sound", cv.WINDOW_NORMAL)
-    cv.setMouseCallback("Sound", on_click)
+    # cv.namedWindow("Sound", cv.WINDOW_NORMAL)
+    # cv.setMouseCallback("Sound", on_click)
     cap = get_camera()
 
     time = 0.0
@@ -112,7 +111,7 @@ def _main(musicbox, is_stopped):
                     y0, y1 = y1, y0
                 frame = frame[y0:y1, x0:x1]
 
-            loop(time, frame, musicbox)
+            loop(time, frame, musicbox, show_image)
             # if cv.waitKey(1) == ord("q"):
             #    break
             time += monotonic() - start
@@ -121,29 +120,3 @@ def _main(musicbox, is_stopped):
         cap.release()
         cv.destroyAllWindows()
 
-
-def main():
-    import threading
-    from synaesthesia.qt import window
-    from mido import open_output
-
-    port = open_output("warsztat", autoreset=True)
-    musicbox = MusicBox(
-        {
-            "red": Music(port, channel=0, program=5),
-            "green": Music(port, channel=1, program=12),
-            "blue": Music(port, channel=2, program=97),
-        }
-    )
-
-    is_stopped = threading.Event()
-    thread_cv = threading.Thread(target=_main, args=(musicbox, is_stopped))
-    thread_cv.start()
-
-    try:
-        window(musicbox)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        is_stopped.set()
-        thread_cv.join()

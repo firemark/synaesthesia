@@ -1,197 +1,64 @@
-import sys
-from typing import Any, Callable
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import (
-    QMainWindow,
-    QApplication,
-    QWidget,
-    QLabel,
-    QComboBox,
-    QSlider,
-    QHBoxLayout,
-    QVBoxLayout,
-    QFormLayout,
-)
+import threading
+from mido import open_output
+from PyQt5.QtCore import QObject, QThread, pyqtSignal
+from PyQt5.QtWidgets import QApplication
+import numpy as np
 
-from synaesthesia.music import Music, MusicBox
-from synaesthesia.instruments import INSTRUMENTS, INSTRUMENTS_LIST, INSTRUMENTS_REVERSE
+from synaesthesia.music import MusicBox, Music
+from synaesthesia.camera import run_thread
+from synaesthesia.gui import MainWindow
 
 
-class MainWindow(QMainWindow):
+class CameraWorker(QObject):
+    signal_progress = pyqtSignal(np.ndarray)
+    signal_finished = pyqtSignal()
+    _signal_stop = pyqtSignal()
 
-    def __init__(self, musicbox: dict[str, Music]):
+    def __init__(self, musicbox: MusicBox):
         super().__init__()
-        self.setWindowTitle("Synaesthesia")
-
-        layout = QFormLayout()
-        main_widget = QWidget()
-        main_widget.setLayout(layout)
-
-        layout.setLabelAlignment(Qt.AlignHCenter)
-        layout.addRow("Synaesthesia", MusicBoxWidget(musicbox, parent=main_widget))
-        for name, music in musicbox.items():
-            widget = MusicWidget(music, parent=main_widget)
-            layout.addRow(name, widget)
-
-        self.setCentralWidget(main_widget)
-
-
-class LabelWidget(QWidget):
-    def __init__(
-        self,
-        label: str,
-        widget_factory: Callable[[QWidget], QWidget],
-        value_cb: Callable[[Any], None],
-        parent=None,
-    ):
-        super().__init__(parent)
-
-        self.label = QLabel(self)
-        self.label.setText(label)
-        self.label.setAlignment(Qt.AlignHCenter)
-
-        self.value = QLabel(self)
-        self.value.setText("-")
-        self.value.setAlignment(Qt.AlignHCenter)
-
-        self.widget = widget_factory(self)
-        self.value.setText(value_cb(self.widget.value()))
-        self.widget.valueChanged.connect(lambda v: self.value.setText(value_cb(v)))
-
-        layout = QVBoxLayout()
-        layout.addWidget(self.label)
-        layout.addWidget(self.widget)
-        layout.addWidget(self.value)
-        layout.setAlignment(Qt.AlignTop)
-        self.setLayout(layout)
-
-
-def _make_dial(min: int, max: int, value: int, cb: Callable[[int], None]):
-    def factory(parent: QWidget) -> QWidget:
-        widget = QSlider(orientation=Qt.Orientation.Horizontal, parent=parent)
-        widget.setMinimum(min)
-        widget.setMaximum(max)
-        widget.setValue(value)
-        widget.valueChanged.connect(cb)
-        return widget
-
-    return factory
-
-
-class MusicBoxWidget(QWidget):
-    def __init__(self, musicbox: MusicBox, parent=None):
-        super().__init__(parent)
-
+        self.progress = pyqtSignal(np.ndarray)
         self._musicbox = musicbox
-        self.period_slider = LabelWidget(
-            "Period",
-            _make_dial(
-                min=30,
-                max=300,
-                value=int(self._musicbox.period * 10),
-                cb=self._set_period,
-            ),
-            value_cb=lambda v: f"{v / 10:0.1f}s",
-        )
+        self._is_stopped = threading.Event()
+        self._signal_stop.connect(self._stop_cb)
 
-        layout = QHBoxLayout()
-        layout.addWidget(self.period_slider)
-        layout.setAlignment(Qt.AlignLeft)
-        self.setLayout(layout)
+    def run(self):
+        run_thread(self._musicbox, self._is_stopped, self.signal_progress.emit)
 
-    def _set_period(self, value: int):
-        self._musicbox.period = value / 10
+    def stop(self):
+        self._signal_stop.emit()
+
+    def _stop_cb(self):
+        self._is_stopped.set()
+        self.signal_finished.emit()
 
 
-class MusicWidget(QWidget):
-    def __init__(self, music: Music, parent=None):
-        super().__init__(parent)
+def main():
+    port = open_output("warsztat", autoreset=True)
+    musicbox = MusicBox(
+        {
+            "red": Music(port, channel=0, program=5),
+            "green": Music(port, channel=1, program=12),
+            "blue": Music(port, channel=2, program=97),
+        }
+    )
 
-        self._music = music
-
-        self.select = QComboBox(self)
-        for label in INSTRUMENTS_LIST:
-            self.select.addItem(label)
-        self.select.setCurrentText(INSTRUMENTS[music.get_program()])
-        self.select.currentTextChanged.connect(self._set_program)
-
-        value_cb = lambda v: f"{v:d}%"
-
-        self.volume_slider = LabelWidget(
-            "Volume",
-            _make_dial(
-                min=0,
-                max=100,
-                value=int(music.get_volume() * 100),
-                cb=self._set_volume,
-            ),
-            value_cb=value_cb,
-        )
-
-        self.polytouch_slider = LabelWidget(
-            "Polytone",
-            _make_dial(
-                min=0,
-                max=100,
-                value=int(music.get_polytouch() * 100),
-                cb=self._set_polytouch,
-            ),
-            value_cb=value_cb,
-        )
-
-        self.pitch_slider = LabelWidget(
-            "Pitch",
-            _make_dial(
-                min=-100,
-                max=+100,
-                value=int(music.get_pitch() * 100),
-                cb=self._set_pitch,
-            ),
-            value_cb=value_cb,
-        )
-
-        def create_effect_widget(name, id):
-            return LabelWidget(
-                name,
-                _make_dial(
-                    min=0,
-                    max=100,
-                    value=0,
-                    cb=lambda v: self._music.set_effect(id, v / 100),
-                ),
-                value_cb=value_cb,
-            )
-
-        layout = QHBoxLayout()
-        layout.addWidget(self.select)
-        layout.addWidget(self.volume_slider)
-        layout.addWidget(self.polytouch_slider)
-        layout.addWidget(self.pitch_slider)
-        layout.addWidget(create_effect_widget("Sustain", 64))
-        layout.addWidget(create_effect_widget("Sostenuto", 66))
-        layout.setAlignment(Qt.AlignLeft)
-        self.setLayout(layout)
-
-    def _set_program(self, text: str):
-        id = INSTRUMENTS_REVERSE[text]
-        self._music.change_program(id)
-
-    def _set_volume(self, value: int):
-        self._music.set_volume(value / 100)
-
-    def _set_polytouch(self, value: int):
-        self._music.set_polytouch(value / 100)
-
-    def _set_pitch(self, value: int):
-        self._music.set_pitch(value / 100)
-
-
-def window(musicbox: dict[str, Music]):
-    app = QApplication(sys.argv)
+    app = QApplication([])
     window = MainWindow(musicbox)
-    window.show()
-    app.exec()
+    thread = QThread()
+    camera_worker = CameraWorker(musicbox)
+    camera_worker.moveToThread(thread)
 
+    camera_worker.signal_finished.connect(thread.quit)
+    camera_worker.signal_progress.connect(window.show_image)
+    thread.started.connect(camera_worker.run)
+    # window.destroyed.connect(camera_worker.stop)
 
-if __name__ == "__main__":
-    window()
+    try:
+        thread.start()
+        window.show()
+        app.exec()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        camera_worker.stop()
+        thread.quit()
