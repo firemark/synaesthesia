@@ -68,19 +68,12 @@ def draw(frame, width, height, x_progress, colors, show_image):
     frame = cv.cvtColor(frame, cv.COLOR_GRAY2BGR)
     for mask in colors.values():
         frame[mask.mask] = frame[mask.mask] / 2 + mask.config.color / 2
-    # frame[:, :, 0] = h * 255
-
-    # frame = cv.cvtColor(frame, cv.COLOR_BGR2HSV_FULL)[:, :, 1]
-    # frame[frame > 128] = 255
-    # frame[frame <= 128] = 0
 
     cv.line(frame, (x_progress, 0), (x_progress, height - 1), (0, 0, 0), 2)
     show_image(frame)
 
 
 def run_thread(musicbox, crop: Crop, colors: dict[str, MaskConfig], is_stopped: "threading.Event", show_image: Callable[[np.ndarray], None]):
-    # cv.namedWindow("Sound", cv.WINDOW_NORMAL)
-    # cv.setMouseCallback("Sound", on_click)
     cap = get_camera()
 
     time = 0.0
