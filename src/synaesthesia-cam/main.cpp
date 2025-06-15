@@ -2,9 +2,11 @@
 #include <thread>
 #include <string>
 #include <vector>
+#include <fstream>
 
 #include <opencv2/imgcodecs.hpp>
 #include <asio.hpp>
+#include <jsoncpp/json/json.h>
 
 #include <synaesthesia-cam/runner.hpp>
 
@@ -61,13 +63,13 @@ namespace syna
         throw std::runtime_error("midi not found.");
     }
 
-    static Runner create_runner()
+    static Runner create_runner(Json::Value &root)
     {
-        auto midi = find_midi("warsztat");
+        auto midi = find_midi(root["midi"].asString());
         int source = 0;
         return Runner{
             MusicBox{
-                std::chrono::seconds(10),
+                std::chrono::seconds(root["period"].asInt()),
                 {
                     {"red", {midi, 0, 5}},
                     {"blue", {midi, 0, 12}},
@@ -76,7 +78,7 @@ namespace syna
                 {"red", {.index = 0, .color{color(255, 0, 0)}, .h = 0.9}},
                 {"blue", {.index = 1, .color{color(0, 0, 255)}, .h = 0.5}},
             },
-            source};
+            root["camera_source"].asInt()};
     }
 }
 
@@ -142,7 +144,24 @@ namespace syna::conn
 
 int main(int argc, char **argv)
 {
-    auto runner = syna::create_runner();
+    if (argc < 2)
+    {
+        return -1;
+    }
+
+    Json::Value root;
+    std::ifstream ifs;
+    ifs.open(argv[1]);
+
+    Json::CharReaderBuilder builder;
+    JSONCPP_STRING errs;
+    if (!parseFromStream(builder, ifs, &root, &errs))
+    {
+        std::cout << errs << std::endl;
+        return -1;
+    }
+
+    auto runner = syna::create_runner(root);
     std::jthread camera_thread(syna::play_music, runner);
 
     syna::conn::run();

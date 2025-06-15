@@ -1,0 +1,67 @@
+{
+    "period": 10.0,
+    "flip": 0,
+    "midi": "warsztat",
+    "camera_source": 0,
+    "crop": {
+        "step": 0,
+        "p0": [
+            0,
+            0
+        ],
+        "p1": [
+            0,
+            0
+        ]
+    },
+    "music": {
+        "red": {
+            "color": [255, 0, 0],
+            "h": 0.9,
+            "v": 0.3,
+            "s": 0.3,
+            "program": 5,
+            "volume": 0.5,
+            "pitch": 0.0,
+            "polytouch": 0.0,
+            "sostain": 0.0,
+            "sostenuto": 0.0
+        },
+        "green": {
+            "color": [0, 255, 0],
+            "h": 0.3,
+            "v": 0.3,
+            "s": 0.3,
+            "program": 12,
+            "volume": 0.5,
+            "pitch": 0.0,
+            "polytouch": 0.0,
+            "sostain": 0.0,
+            "sostenuto": 0.0
+        },
+        "blue": {
+            "color": [0, 0, 255],
+            "h": 0.5,
+            "v": 0.3,
+            "s": 0.3,
+            "program": 97,
+            "volume": 0.5,
+            "pitch": 0.0,
+            "polytouch": 0.0,
+            "sostain": 0.0,
+            "sostenuto": 0.0
+        },
+        "yellow": {
+            "color": [255, 255, 0],
+            "h": 0.1,
+            "v": 0.3,
+            "s": 0.3,
+            "program": 97,
+            "volume": 0.5,
+            "pitch": 0.0,
+            "polytouch": 0.0,
+            "sostain": 0.0,
+            "sostenuto": 0.0
+        }
+    }
+}
