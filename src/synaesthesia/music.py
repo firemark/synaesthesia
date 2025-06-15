@@ -47,37 +47,37 @@ class Music:
 
     def change_program(self, program: int):
         self._program = program
-        self.port.send(
-            Message("program_change", channel=self._channel, program=program)
-        )
+        # self.port.send(
+        #     Message("program_change", channel=self._channel, program=program)
+        # )
 
     def set_volume(self, volume: float):
         self._velocity = int(volume * 127)
 
     def set_pitch(self, value: float):
         self._pitch = int(value * 8191.0)
-        self.port.send(Message("pitchwheel", channel=self._channel, pitch=self._pitch))
+        # self.port.send(Message("pitchwheel", channel=self._channel, pitch=self._pitch))
 
     def set_effect(self, id: int, value: float):
         v = int(value * 127)
         self._effects[id] = v
-        self.port.send(
-            Message("control_change", channel=self._channel, control=id, value=v)
-        )
+        # self.port.send(
+        #     Message("control_change", channel=self._channel, control=id, value=v)
+        # )
 
     def set_polytouch(self, value: float):
         self._polytouch = int(value * 127)
-        self.port.send(
-            Message("aftertouch", channel=self._channel, value=self._polytouch)
-        )
+        # self.port.send(
+        #     Message("aftertouch", channel=self._channel, value=self._polytouch)
+        # )
 
     def note_on(self, note_id: int, add: float = 0.0):
         # pp = int(add * 1024.0)
         # self.port.send(Message("pitchwheel", channel=self._channel, pitch=pp))
         add_v = min(127, 63 + int(add * 64))
-        self.port.send(
-            Message("control_change", channel=self._channel, control=7, value=add_v)
-        )
+        # self.port.send(
+        #     Message("control_change", channel=self._channel, control=7, value=add_v)
+        # )
         self._note_set(note_id, "on", velocity=self._velocity)
 
     def note_off(self, note_id: int):
@@ -96,7 +96,7 @@ class Music:
         note.timestamp = now
 
         msg = Message(f"note_{action}", note=note.note, channel=self._channel, **kwargs)
-        self.port.send(msg)
+        # self.port.send(msg)
 
 
 class MusicBox(dict[str, Music]):

@@ -1,6 +1,7 @@
 from typing import Any, Callable
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QImage, QPixmap, QColor 
+from PyQt5.QtNetwork import QTcpSocket, QHostAddress
 from PyQt5.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -82,6 +83,12 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Synaesthesia")
 
+        self.socket = QTcpSocket(self)
+        self.socket.connectToHost(QHostAddress.LocalHost, 2137)
+
+        def sck(*args):
+            self.socket.write(" ".join(args).encode() + b"\n")
+
         main_layout = QHBoxLayout()
         main_layout.setAlignment(Qt.AlignTop)
         self.main_widget = QWidget(parent=self)
@@ -101,7 +108,7 @@ class MainWindow(QMainWindow):
         self.form_widget = QWidget(parent=self.main_widget)
         self.form_widget.setLayout(form_layout)
 
-        musicbox_widget = MusicBoxWidget(musicbox, self.signal_image_flipped, parent=self.form_widget)
+        musicbox_widget = MusicBoxWidget(musicbox, sck, parent=self.form_widget)
         form_layout.addWidget(musicbox_widget, 0, 0, 1, -1)
 
         for index, (name, music) in enumerate(musicbox.items(), start=1):
@@ -109,7 +116,7 @@ class MainWindow(QMainWindow):
             label.setText(name)
             label.setStyleSheet("QLabel { background-color: %s; color: black; }" % name)
             label.setAlignment(Qt.AlignCenter)
-            widget = MusicWidget(music, colors[name], parent=self.form_widget)
+            widget = MusicWidget(music, sck, name, colors[name], parent=self.form_widget)
             form_layout.addWidget(label, index, 0)
             form_layout.addWidget(widget, index, 1)
 
@@ -174,11 +181,11 @@ def _make_dial(min: int, max: int, value: int, cb: Callable[[int], None]):
 
 
 class MusicBoxWidget(QWidget):
-    def __init__(self, musicbox: MusicBox, signal_flip, parent=None):
+    def __init__(self, musicbox: MusicBox, socket, parent=None):
         super().__init__(parent)
 
         self._musicbox = musicbox
-        self.signal_flip = signal_flip
+        self.socket = socket
         self.period_slider = LabelWidget(
             "Period",
             _make_dial(
@@ -197,7 +204,7 @@ class MusicBoxWidget(QWidget):
             return button
 
         def flip_emit(val):
-            return lambda: self.signal_flip.emit(val)
+            return lambda: self.socket("screen", "flip", str(val))
 
         grid_layout = QGridLayout()
         grid_layout.setSpacing(5)
@@ -210,14 +217,18 @@ class MusicBoxWidget(QWidget):
         self.setLayout(grid_layout)
 
     def _set_period(self, value: int):
-        self._musicbox.period = value / 10
+        v = value / 10
+        self.socket("music", "period", str(v))
+        self._musicbox.period = v
 
 
 class MusicWidget(QWidget):
-    def __init__(self, music: Music, color_config: MaskConfig, parent=None):
+    def __init__(self, music: Music, socket, name, color_config: MaskConfig, parent=None):
         super().__init__(parent)
 
         self._music = music
+        self._socket = socket
+        self._name = name
 
         self.select = QComboBox(self)
         for label in INSTRUMENTS_LIST:
@@ -226,11 +237,16 @@ class MusicWidget(QWidget):
         self.select.currentTextChanged.connect(self._set_program)
 
         def make_dial_color(key):
+            def f(v):
+                vv = v / 100
+                self._socket(self._name, key, str(vv))
+                setattr(color_config, key, str(vv))
+
             factory = _make_dial(
                 min=0,
                 max=100,
                 value=int(getattr(color_config, key) * 100),
-                cb=lambda v: setattr(color_config, key, v / 100),
+                cb=f,
             )
             return factory(parent=self)
 
@@ -300,13 +316,20 @@ class MusicWidget(QWidget):
 
     def _set_program(self, text: str):
         id = INSTRUMENTS_REVERSE[text]
+        self._socket(self._name, "program", str(id))
         self._music.change_program(id)
 
     def _set_volume(self, value: int):
-        self._music.set_volume(value / 100)
+        v = value / 100
+        self._socket(self._name, "volume", str(v))
+        self._music.set_volume(v)
 
     def _set_polytouch(self, value: int):
-        self._music.set_polytouch(value / 100)
+        v = value / 100
+        self._socket(self._name, "polytouch", str(v))
+        self._music.set_polytouch(v)
 
     def _set_pitch(self, value: int):
-        self._music.set_pitch(value / 100)
+        v = value / 100
+        self._socket(self._name, "pitch", str(v))
+        self._music.set_pitch(v)

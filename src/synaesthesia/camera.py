@@ -19,7 +19,7 @@ class Crop:
 
 
 def get_camera():
-    cap = cv.VideoCapture(4)
+    cap = cv.VideoCapture(0)
     cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
     cap.set(cv.CAP_PROP_BUFFERSIZE, 3)

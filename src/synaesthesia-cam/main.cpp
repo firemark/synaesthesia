@@ -1,16 +1,12 @@
 #include <iostream>
 #include <thread>
+#include <string>
 #include <vector>
 
-#include <asio.hpp>
 #include <opencv2/imgcodecs.hpp>
+#include <asio.hpp>
 
 #include <synaesthesia-cam/runner.hpp>
-
-static void print(const std::error_code & /*e*/)
-{
-    std::cout << "Hello, world!" << std::endl;
-}
 
 namespace syna
 {
@@ -46,19 +42,29 @@ namespace syna
         return cv::Scalar_<uint8_t>(b, g, r);
     }
 
-    Runner create_runner()
+    static std::shared_ptr<RtMidiOut> find_midi(const std::string &query)
     {
         std::shared_ptr<RtMidiOut> midi = std::make_shared<RtMidiOut>();
-        midi->openPort(1, "warsztat");
 
-        unsigned int nPorts = midi->getPortCount();
-        for (unsigned int i = 0; i < nPorts; i++)
+        unsigned int n = midi->getPortCount();
+        for (unsigned int i = 0; i < n; i++)
         {
-            auto portName = midi->getPortName(i);
-            std::cerr << "  Input Port #" << i + 1 << ": " << portName << '\n';
+            auto name = midi->getPortName(i);
+            auto name_first_part = name.substr(0, name.find(':'));
+            if (name_first_part == query)
+            {
+                midi->openPort(i, name);
+                return midi;
+            }
         }
 
-        std::cerr << "midi: " << nPorts << std::endl;
+        throw std::runtime_error("midi not found.");
+    }
+
+    static Runner create_runner()
+    {
+        auto midi = find_midi("warsztat");
+        int source = 0;
         return Runner{
             MusicBox{
                 std::chrono::seconds(10),
@@ -69,18 +75,79 @@ namespace syna
             {
                 {"red", {.index = 0, .color{color(255, 0, 0)}, .h = 0.9}},
                 {"blue", {.index = 1, .color{color(0, 0, 255)}, .h = 0.5}},
-            }};
+            },
+            source};
     }
+}
+
+namespace syna::conn
+{
+
+    using asio::awaitable;
+    using asio::co_spawn;
+    using asio::detached;
+    using asio::use_awaitable;
+    using asio::ip::tcp;
+    namespace this_coro = asio::this_coro;
+
+    awaitable<void> listener()
+    {
+        auto listen = [](tcp::socket socket) -> awaitable<void>
+        {
+            for (;;)
+            {
+                std::string read_msg;
+                size_t n = co_await asio::async_read_until( //
+                    socket,
+                    asio::dynamic_buffer(read_msg, 1024), "\n", use_awaitable);
+
+                if (n == 0)
+                {
+                    co_return;
+                }
+
+                if (read_msg == "\n")
+                {
+                    co_return;
+                }
+
+                std::cerr << read_msg << std::endl;
+                read_msg.erase(0, n);
+            }
+        };
+
+        auto executor = co_await this_coro::executor;
+        tcp::acceptor acceptor(executor, {tcp::v4(), 2137});
+        for (;;)
+        {
+            tcp::socket socket = co_await acceptor.async_accept(use_awaitable);
+            co_spawn(executor, listen(std::move(socket)), detached);
+        }
+    }
+
+    void
+    run()
+    {
+        asio::io_context io_context;
+        asio::signal_set signals(io_context, SIGINT, SIGTERM);
+        signals.async_wait([&](auto, auto)
+                           { io_context.stop(); });
+
+        co_spawn(io_context, listener(), detached);
+
+        io_context.run();
+    }
+
 }
 
 int main(int argc, char **argv)
 {
-    std::jthread camera_thread(syna::play_music, syna::create_runner());
-    // asio::io_context io;
+    auto runner = syna::create_runner();
+    std::jthread camera_thread(syna::play_music, runner);
 
-    // asio::steady_timer t(io, asio::chrono::seconds(5));
-    // t.async_wait(&print);
-    // io.run();
+    syna::conn::run();
+
+    camera_thread.request_stop();
     camera_thread.join();
 
     return 0;

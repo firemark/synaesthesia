@@ -7,33 +7,8 @@ import numpy as np
 
 from synaesthesia.colors import MaskConfig
 from synaesthesia.music import MusicBox, Music
-from synaesthesia.camera import Crop, run_thread
+from synaesthesia.camera import Crop
 from synaesthesia.gui import MainWindow
-
-
-class CameraWorker(QObject):
-    signal_progress = pyqtSignal(np.ndarray)
-    signal_finished = pyqtSignal()
-    _signal_stop = pyqtSignal()
-
-    def __init__(self, musicbox: MusicBox, crop: Crop, colors: dict[str, MaskConfig]):
-        super().__init__()
-        self.progress = pyqtSignal(np.ndarray)
-        self._musicbox = musicbox
-        self._crop = crop
-        self._colors = colors
-        self._is_stopped = threading.Event()
-        self._signal_stop.connect(self._stop_cb)
-
-    def run(self):
-        run_thread(self._musicbox, self._crop, self._colors, self._is_stopped, self.signal_progress.emit)
-
-    def stop(self):
-        self._signal_stop.emit()
-
-    def _stop_cb(self):
-        self._is_stopped.set()
-        self.signal_finished.emit()
 
 
 def on_click(crop, x: float, y: float):
@@ -72,23 +47,24 @@ def main():
     crop = Crop()
     app = QApplication([])
     window = MainWindow(musicbox, colors)
-    thread = QThread()
-    camera_worker = CameraWorker(musicbox, crop, colors)
-    camera_worker.moveToThread(thread)
+    # thread = QThread()
+    # camera_worker = CameraWorker(musicbox, crop, colors)
+    # camera_worker.moveToThread(thread)
 
-    window.signal_image_clicked.connect(partial(on_click, crop))
-    window.signal_image_flipped.connect(partial(on_flip, crop))
-    camera_worker.signal_finished.connect(thread.quit)
-    camera_worker.signal_progress.connect(window.show_image)
-    thread.started.connect(camera_worker.run)
+    # window.signal_image_clicked.connect(partial(on_click, crop))
+    # window.signal_image_flipped.connect(partial(on_flip, crop))
+    # camera_worker.signal_finished.connect(thread.quit)
+    # camera_worker.signal_progress.connect(window.show_image)
+    # thread.started.connect(camera_worker.run)
     # window.destroyed.connect(camera_worker.stop)
 
     try:
-        thread.start()
+        # thread.start()
         window.show()
         app.exec()
     except KeyboardInterrupt:
         pass
     finally:
-        camera_worker.stop()
-        thread.quit()
+        pass
+        # camera_worker.stop()
+        # thread.quit()
