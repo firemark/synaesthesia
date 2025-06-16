@@ -1,3 +1,4 @@
+import json
 from typing import Any, Callable
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QImage, QPixmap, QColor
@@ -75,10 +76,9 @@ class ImageScene(QGraphicsScene):
 
 
 class MainWindow(QMainWindow):
-    signal_image_clicked = pyqtSignal(float, float)
-    signal_image_flipped = pyqtSignal(int)
+    signal_image_clicked = pyqtSignal(int, int)
 
-    def __init__(self, musicbox: dict[str, Music], colors: dict[str, MaskConfig]):
+    def __init__(self, filepath, config):
         super().__init__()
         self.setWindowTitle("Synaesthesia")
 
@@ -111,17 +111,15 @@ class MainWindow(QMainWindow):
         self.form_widget = QWidget(parent=self.main_widget)
         self.form_widget.setLayout(form_layout)
 
-        musicbox_widget = MusicBoxWidget(musicbox, sck, parent=self.form_widget)
+        musicbox_widget = MusicBoxWidget(filepath, config, sck, parent=self.form_widget)
         form_layout.addWidget(musicbox_widget, 0, 0, 1, -1)
 
-        for index, (name, music) in enumerate(musicbox.items(), start=1):
+        for index, (name, music) in enumerate(config["music"].items(), start=1):
             label = QLabel()
             label.setText(name)
             label.setStyleSheet("QLabel { background-color: %s; color: black; }" % name)
             label.setAlignment(Qt.AlignCenter)
-            widget = MusicWidget(
-                music, sck, name, colors[name], parent=self.form_widget
-            )
+            widget = MusicWidget(music, sck, name, parent=self.form_widget)
             form_layout.addWidget(label, index, 0)
             form_layout.addWidget(widget, index, 1)
 
@@ -130,8 +128,13 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.main_widget)
         self.setStyleSheet(STYLE)
 
+        self.signal_image_clicked.connect(self.crop)
+
     def resizeEvent(self, ev):
         self.image_widget.setFixedWidth(self.width() // 2)
+
+    def crop(self, x, y):
+        self.socket.write(f"screen crop {x} {y}".encode())
 
     def show_image(self, frame):
         h, w, ch = frame.shape
@@ -186,17 +189,18 @@ def _make_dial(min: int, max: int, value: int, cb: Callable[[int], None]):
 
 
 class MusicBoxWidget(QWidget):
-    def __init__(self, musicbox: MusicBox, socket, parent=None):
+    def __init__(self, filepath, config, socket, parent=None):
         super().__init__(parent)
 
-        self._musicbox = musicbox
+        self.filepath = filepath
+        self.config = config
         self.socket = socket
         self.period_slider = LabelWidget(
             "Period",
             _make_dial(
                 min=30,
                 max=300,
-                value=int(self._musicbox.period * 10),
+                value=int(config["period"] * 10),
                 cb=self._set_period,
             ),
             value_cb=lambda v: f"{v / 10:0.1f}s",
@@ -209,14 +213,14 @@ class MusicBoxWidget(QWidget):
             return button
 
         def flip_emit(val):
-            return lambda: self.socket("screen", "flip", str(val))
+            return lambda: self._flip(val)
 
         grid_layout = QGridLayout()
         grid_layout.setSpacing(5)
         grid_layout.addWidget(make_btn("No Flip", flip_emit(0)), 0, 0)
         grid_layout.addWidget(make_btn("Flip", flip_emit(1)), 0, 1)
         grid_layout.addWidget(make_btn("Mirror", flip_emit(-1)), 1, 0)
-        grid_layout.addWidget(make_btn("Save", flip_emit(0)), 1, 1)
+        grid_layout.addWidget(make_btn("Save", self._save), 1, 1)
         grid_layout.addWidget(self.period_slider, 0, 3, -1, 1)
 
         self.setLayout(grid_layout)
@@ -224,38 +228,62 @@ class MusicBoxWidget(QWidget):
     def _set_period(self, value: int):
         v = value / 10
         self.socket("music", "period", str(v))
-        self._musicbox.period = v
+        self.config["period"] = v
+
+    def _save(self):
+        with open(self.filepath, "w") as file:
+            json.dump(self.config, file, indent=4)
+
+    def _flip(self, val):
+        self.socket("screen", "crop", "-", "-")
+        self.socket("screen", "flip", val)
+        self.config["flip"] = val
 
 
 class MusicWidget(QWidget):
-    def __init__(
-        self, music: Music, socket, name, color_config: MaskConfig, parent=None
-    ):
+    def __init__(self, config, socket, name, parent=None):
         super().__init__(parent)
 
-        self._music = music
+        self._config = config
         self._socket = socket
         self._name = name
 
         self.select = QComboBox(self)
         for label in INSTRUMENTS_LIST:
             self.select.addItem(label)
-        self.select.setCurrentText(INSTRUMENTS[music.get_program()])
+        self.select.setCurrentText(INSTRUMENTS[config["program"]])
         self.select.currentTextChanged.connect(self._set_program)
 
-        def make_dial_color(key):
+        def make_callback(key):
             def f(v):
                 vv = v / 100
                 self._socket("music_" + self._name, key, str(vv))
-                setattr(color_config, key, str(vv))
+                config[key] = str(vv)
 
+            return f
+
+        def make_dial_color(key):
             factory = _make_dial(
                 min=0,
                 max=100,
-                value=int(getattr(color_config, key) * 100),
-                cb=f,
+                value=int(config[key] * 100),
+                cb=make_callback(key),
             )
             return factory(parent=self)
+
+        value_cb = lambda v: f"{v:d}%"
+
+        def make_dial_music(name, key, min=0, max=100):
+            return LabelWidget(
+                name,
+                _make_dial(
+                    min=min,
+                    max=max,
+                    value=int(config[key] * 100),
+                    cb=make_callback(key),
+                ),
+                value_cb=value_cb,
+            )
 
         color_layout = QVBoxLayout()
         color_layout.addWidget(make_dial_color("h"))
@@ -263,79 +291,17 @@ class MusicWidget(QWidget):
         color_layout.addWidget(make_dial_color("s"))
         color_layout.addWidget(self.select)
 
-        value_cb = lambda v: f"{v:d}%"
-
-        self.volume_slider = LabelWidget(
-            "Volume",
-            _make_dial(
-                min=0,
-                max=100,
-                value=int(music.get_volume() * 100),
-                cb=self._set_volume,
-            ),
-            value_cb=value_cb,
-        )
-
-        self.polytouch_slider = LabelWidget(
-            "Polytone",
-            _make_dial(
-                min=0,
-                max=100,
-                value=int(music.get_polytouch() * 100),
-                cb=self._set_polytouch,
-            ),
-            value_cb=value_cb,
-        )
-
-        self.pitch_slider = LabelWidget(
-            "Pitch",
-            _make_dial(
-                min=-100,
-                max=+100,
-                value=int(music.get_pitch() * 100),
-                cb=self._set_pitch,
-            ),
-            value_cb=value_cb,
-        )
-
-        def create_effect_widget(name, id):
-            return LabelWidget(
-                name,
-                _make_dial(
-                    min=0,
-                    max=100,
-                    value=0,
-                    cb=lambda v: self._music.set_effect(id, v / 100),
-                ),
-                value_cb=value_cb,
-            )
-
         layout = QHBoxLayout()
         layout.addLayout(color_layout)
-        layout.addWidget(self.volume_slider)
-        layout.addWidget(self.polytouch_slider)
-        layout.addWidget(self.pitch_slider)
-        layout.addWidget(create_effect_widget("Sustain", 64))
-        layout.addWidget(create_effect_widget("Sostenuto", 66))
+        layout.addWidget(make_dial_music("Volume", "volume"))
+        layout.addWidget(make_dial_music("Polytouch", "polytouch"))
+        layout.addWidget(make_dial_music("Pitch", "pitch", min=-100))
+        layout.addWidget(make_dial_music("Sustain", "sustain"))
+        layout.addWidget(make_dial_music("Sostenuto", "sostenuto"))
         layout.setAlignment(Qt.AlignLeft)
         self.setLayout(layout)
 
     def _set_program(self, text: str):
         id = INSTRUMENTS_REVERSE[text]
         self._socket("music_" + self._name, "program", str(id))
-        self._music.change_program(id)
-
-    def _set_volume(self, value: int):
-        v = value / 100
-        self._socket("music_" + self._name, "volume", str(v))
-        self._music.set_volume(v)
-
-    def _set_polytouch(self, value: int):
-        v = value / 100
-        self._socket("music_" + self._name, "polytouch", str(v))
-        self._music.set_polytouch(v)
-
-    def _set_pitch(self, value: int):
-        v = value / 100
-        self._socket("music_" + self._name, "pitch", str(v))
-        self._music.set_pitch(v)
+        self._config["program"] = id

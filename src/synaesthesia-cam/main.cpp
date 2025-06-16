@@ -108,7 +108,7 @@ namespace syna
                 .volume = music["volume"].asFloat(),
                 .pitch = music["pitch"].asFloat(),
                 .polytouch = music["polytouch"].asFloat(),
-                .sostain = music["sostain"].asFloat(),
+                .sustain = music["sustain"].asFloat(),
                 .sostenuto = music["sostenuto"].asFloat(),
             };
             MaskConfig mask_config{
@@ -209,9 +209,9 @@ namespace syna::conn
                     {
                         music.set_polytouch(val);
                     }
-                    else if (parts[1] == "sostain")
+                    else if (parts[1] == "sustain")
                     {
-                        music.set_sostain(val);
+                        music.set_sustain(val);
                     }
                     else if (parts[1] == "sostenuto")
                     {

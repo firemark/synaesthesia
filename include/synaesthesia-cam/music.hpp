@@ -51,9 +51,15 @@ namespace syna
         float volume;
         float pitch;
         float polytouch;
-        float sostain;
+        float sustain;
         float sostenuto;
     };
+
+    template <size_t I = 0x7F, typename T = uint8_t>
+    T val_to_int(double v)
+    {
+        return static_cast<T>(std::abs(v) * I);
+    }
 
     class Music
     {
@@ -74,7 +80,7 @@ namespace syna
             set_volume(config.volume);
             set_pitch(config.pitch);
             set_polytouch(config.polytouch);
-            set_sostain(config.sostain);
+            set_sustain(config.sustain);
             set_sostenuto(config.sostenuto);
         }
 
@@ -111,34 +117,31 @@ namespace syna
 
         void set_volume(float v)
         {
-            volume_ = static_cast<float>(std::abs(v) * 0x7F);
+            volume_ = val_to_int(v);
         }
 
         void set_pitch(float v)
         {
-            auto pitch = static_cast<uint16_t>(v * 0x1FFF);
-            std::vector<uint8_t> msg = {id(0xE0), pitch >> 7, pitch & 0xFF};
+            auto pitch = val_to_int<0x3FFF, uint16_t>((v + 1.0) / 2.0);
+            std::vector<uint8_t> msg = {id(0xE0), pitch >> 7, pitch & 0x7F};
             midi_->sendMessage(&msg);
         }
 
         void set_polytouch(float v)
         {
-            auto vv = std::abs(static_cast<uint8_t>(v * 0xFF));
-            std::vector<uint8_t> msg = {id(0xD0), vv};
+            std::vector<uint8_t> msg = {id(0xD0), val_to_int(v)};
             midi_->sendMessage(&msg);
         }
 
-        void set_sostain(float v)
+        void set_sustain(float v)
         {
-            auto vv = std::abs(static_cast<uint8_t>(v * 0xFF));
-            std::vector<uint8_t> msg = {id(0x64), vv};
+            std::vector<uint8_t> msg = {id(0xB0), 64, val_to_int(v)};
             midi_->sendMessage(&msg);
         }
 
         void set_sostenuto(float v)
         {
-            auto vv = std::abs(static_cast<uint8_t>(v * 0xFF));
-            std::vector<uint8_t> msg = {0x66, vv};
+            std::vector<uint8_t> msg = {id(0xB0), 66, val_to_int(v)};
             midi_->sendMessage(&msg);
         }
 

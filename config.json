@@ -24,7 +24,7 @@
             "volume": 0.5,
             "pitch": 0.0,
             "polytouch": 0.0,
-            "sostain": 0.0,
+            "sustain": 0.0,
             "sostenuto": 0.0
         },
         "green": {
@@ -36,7 +36,7 @@
             "volume": 0.5,
             "pitch": 0.0,
             "polytouch": 0.0,
-            "sostain": 0.0,
+            "sustain": 0.0,
             "sostenuto": 0.0
         },
         "blue": {
@@ -48,7 +48,7 @@
             "volume": 0.5,
             "pitch": 0.0,
             "polytouch": 0.0,
-            "sostain": 0.0,
+            "sustain": 0.0,
             "sostenuto": 0.0
         },
         "yellow": {
@@ -60,7 +60,7 @@
             "volume": 0.5,
             "pitch": 0.0,
             "polytouch": 0.0,
-            "sostain": 0.0,
+            "sustain": 0.0,
             "sostenuto": 0.0
         }
     }
