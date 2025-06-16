@@ -1,4 +1,5 @@
 #pragma once
+#include <mutex>
 #include <unordered_map>
 #include <opencv2/core.hpp>
 #pragma GCC diagnostic push
@@ -20,6 +21,10 @@ namespace syna
         cv::Mat get_frame();
         std::chrono::microseconds loop(cv::Mat &frame, std::chrono::microseconds time);
 
+        MusicBox &musicbox() { return musicbox_; }
+        MaskConfig &colors(const std::string &key) { return colors_.at(key); }
+        std::mutex &mutex() { return mutex_; }
+
     private:
         std::unordered_map<std::string, Mask> get_colors(cv::Mat &frame);
         Mask color_to_mask(const cv::Mat &h, const cv::Mat &s, const cv::Mat &v, const MaskConfig &config);
@@ -29,6 +34,7 @@ namespace syna
         MusicBox musicbox_;
         std::unordered_map<std::string, MaskConfig> colors_;
         cv::VideoCapture camera_;
+        std::mutex mutex_;
         bool fail_ = false;
     };
 

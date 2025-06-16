@@ -1,6 +1,6 @@
 from typing import Any, Callable
 from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QImage, QPixmap, QColor 
+from PyQt5.QtGui import QImage, QPixmap, QColor
 from PyQt5.QtNetwork import QTcpSocket, QHostAddress
 from PyQt5.QtWidgets import (
     QMainWindow,
@@ -62,9 +62,8 @@ QSlider::sub-page {
 """
 
 
-
 class ImageScene(QGraphicsScene):
-    
+
     def __init__(self, signal):
         super().__init__()
         self.signal = signal
@@ -98,8 +97,12 @@ class MainWindow(QMainWindow):
         self.image_widget = QGraphicsView(self.image_scene, parent=self.main_widget)
         self.image_widget.setMinimumWidth(320)
         self.image_widget.setMinimumHeight(320)
-        self.image_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.image_widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.image_widget.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.image_widget.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
         self.image_widget.setAlignment(Qt.AlignCenter)
         self.image_widget.setBackgroundBrush(QColor("#222831"))
         self.image_widget.setStyleSheet("* {border: 0;}")
@@ -116,7 +119,9 @@ class MainWindow(QMainWindow):
             label.setText(name)
             label.setStyleSheet("QLabel { background-color: %s; color: black; }" % name)
             label.setAlignment(Qt.AlignCenter)
-            widget = MusicWidget(music, sck, name, colors[name], parent=self.form_widget)
+            widget = MusicWidget(
+                music, sck, name, colors[name], parent=self.form_widget
+            )
             form_layout.addWidget(label, index, 0)
             form_layout.addWidget(widget, index, 1)
 
@@ -223,7 +228,9 @@ class MusicBoxWidget(QWidget):
 
 
 class MusicWidget(QWidget):
-    def __init__(self, music: Music, socket, name, color_config: MaskConfig, parent=None):
+    def __init__(
+        self, music: Music, socket, name, color_config: MaskConfig, parent=None
+    ):
         super().__init__(parent)
 
         self._music = music
@@ -239,7 +246,7 @@ class MusicWidget(QWidget):
         def make_dial_color(key):
             def f(v):
                 vv = v / 100
-                self._socket(self._name, key, str(vv))
+                self._socket("music_" + self._name, key, str(vv))
                 setattr(color_config, key, str(vv))
 
             factory = _make_dial(
@@ -249,7 +256,6 @@ class MusicWidget(QWidget):
                 cb=f,
             )
             return factory(parent=self)
-
 
         color_layout = QVBoxLayout()
         color_layout.addWidget(make_dial_color("h"))
@@ -316,20 +322,20 @@ class MusicWidget(QWidget):
 
     def _set_program(self, text: str):
         id = INSTRUMENTS_REVERSE[text]
-        self._socket(self._name, "program", str(id))
+        self._socket("music_" + self._name, "program", str(id))
         self._music.change_program(id)
 
     def _set_volume(self, value: int):
         v = value / 100
-        self._socket(self._name, "volume", str(v))
+        self._socket("music_" + self._name, "volume", str(v))
         self._music.set_volume(v)
 
     def _set_polytouch(self, value: int):
         v = value / 100
-        self._socket(self._name, "polytouch", str(v))
+        self._socket("music_" + self._name, "polytouch", str(v))
         self._music.set_polytouch(v)
 
     def _set_pitch(self, value: int):
         v = value / 100
-        self._socket(self._name, "pitch", str(v))
+        self._socket("music_" + self._name, "pitch", str(v))
         self._music.set_pitch(v)
