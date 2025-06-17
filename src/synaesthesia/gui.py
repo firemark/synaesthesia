@@ -1,6 +1,6 @@
 import json
 from typing import Any, Callable
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, QTimer, QTime, pyqtSignal
 from PyQt5.QtGui import QImage, QPixmap, QColor
 from PyQt5.QtNetwork import QTcpSocket, QHostAddress
 from PyQt5.QtWidgets import (
@@ -137,19 +137,26 @@ class MainWindow(QMainWindow):
 
         self.signal_image_clicked.connect(self.crop)
 
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.timeout)
+        self.timer.start(config["window_speed"])
+
+    def timeout(self):
+        self.show_image("/tmp/test.jpg")
+
     def resizeEvent(self, ev):
         self.image_widget.setFixedWidth(self.width() // 3)
 
     def crop(self, x, y):
         self.socket.write(f"screen crop {x} {y}".encode())
 
-    def show_image(self, frame):
-        h, w, ch = frame.shape
-        qt_image = QImage(frame.data, w, h, ch * w, QImage.Format_BGR888)
-        pixmap = QPixmap.fromImage(qt_image)
+    def show_image(self, url):
+        pixmap = QPixmap(url)
+        if pixmap.isNull():
+            return
         self.image_scene.clear()
         self.image_scene.addPixmap(pixmap)
-        self.image_widget.fitInView(0, 0, w, h, Qt.KeepAspectRatio)
+        self.image_widget.fitInView(0, 0, pixmap.width(), pixmap.height(), Qt.KeepAspectRatio)
 
 
 class LabelWidget(QWidget):
@@ -266,10 +273,6 @@ class MusicWidget(QWidget):
                 vv = v / 100
                 self._socket("music_" + self._name, key, str(vv))
                 config[key] = str(vv)
-
-            return f
-
-        def make_checkbox_callback(key):
 
             return f
 

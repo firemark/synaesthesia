@@ -1,5 +1,7 @@
 #include "synaesthesia-cam/runner.hpp"
 
+#include <opencv2/imgproc.hpp>
+
 namespace syna
 {
     Runner::Runner(MusicBox musicbox, std::unordered_map<std::string, MaskConfig> colors, int source) : musicbox_(musicbox), colors_(colors), camera_(source)

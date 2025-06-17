@@ -5,7 +5,6 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-enum-enum-conversion"
 #include <opencv2/videoio.hpp>
-#include <opencv2/imgproc.hpp>
 #pragma GCC diagnostic pop
 
 #include <synaesthesia-cam/mask.hpp>

@@ -3,6 +3,7 @@
     "flip": 0,
     "midi": "warsztat",
     "camera_source": 0,
+    "window_speed": 50,
     "crop": {
         "step": 0,
         "p0": [
