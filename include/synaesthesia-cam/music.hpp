@@ -2,6 +2,7 @@
 #include <unordered_map>
 #include <string>
 #include <chrono>
+#include <memory>
 
 #include <rtmidi/RtMidi.h>
 
@@ -18,25 +19,7 @@ namespace syna
     public:
         Note(uint8_t note) : note_(note), timestamp_(std::chrono::steady_clock::now()) {}
         constexpr uint8_t note() const { return note_; }
-
-        bool set(NoteState state)
-        {
-            if (state_ == state)
-            {
-                return false;
-            }
-
-            auto now = std::chrono::steady_clock::now();
-            auto delay = now - timestamp_;
-            if (delay < std::chrono::milliseconds(100))
-            {
-                return false;
-            }
-
-            state_ = state;
-            timestamp_ = now;
-            return true;
-        }
+        bool set(NoteState state);
 
     private:
         uint8_t note_;
@@ -51,15 +34,12 @@ namespace syna
         float volume;
         float pitch;
         float polytouch;
+        float modwheel;
+        float reverb;
+        float chorus;
         float sustain;
         float sostenuto;
     };
-
-    template <size_t I = 0x7F, typename T = uint8_t>
-    T val_to_int(double v)
-    {
-        return static_cast<T>(std::abs(v) * I);
-    }
 
     class Music
     {
@@ -80,70 +60,25 @@ namespace syna
             set_volume(config.volume);
             set_pitch(config.pitch);
             set_polytouch(config.polytouch);
+            set_modwheel(config.modwheel);
+            set_reverb(config.reverb);
+            set_chorus(config.chorus);
             set_sustain(config.sustain);
             set_sostenuto(config.sostenuto);
         }
 
-        size_t get_len_notes()
-        {
-            return notes_.size();
-        }
-
-        void note_on(size_t index)
-        {
-            auto &note = notes_.at(index);
-            if (note.set(NoteState::On))
-            {
-                std::vector<uint8_t> msg = {id(0x90), note.note(), volume_};
-                midi_->sendMessage(&msg);
-            }
-        }
-
-        void note_off(size_t index)
-        {
-            auto &note = notes_.at(index);
-            if (note.set(NoteState::Off))
-            {
-                std::vector<uint8_t> msg = {id(0x80), note.note(), volume_};
-                midi_->sendMessage(&msg);
-            }
-        }
-
-        void set_program(uint8_t program)
-        {
-            std::vector<uint8_t> msg = {id(0xC0), program};
-            midi_->sendMessage(&msg);
-        }
-
-        void set_volume(float v)
-        {
-            volume_ = val_to_int(v);
-        }
-
-        void set_pitch(float v)
-        {
-            auto pitch = val_to_int<0x3FFF, uint16_t>((v + 1.0) / 2.0);
-            std::vector<uint8_t> msg = {id(0xE0), pitch >> 7, pitch & 0x7F};
-            midi_->sendMessage(&msg);
-        }
-
-        void set_polytouch(float v)
-        {
-            std::vector<uint8_t> msg = {id(0xD0), val_to_int(v)};
-            midi_->sendMessage(&msg);
-        }
-
-        void set_sustain(float v)
-        {
-            std::vector<uint8_t> msg = {id(0xB0), 64, val_to_int(v)};
-            midi_->sendMessage(&msg);
-        }
-
-        void set_sostenuto(float v)
-        {
-            std::vector<uint8_t> msg = {id(0xB0), 66, val_to_int(v)};
-            midi_->sendMessage(&msg);
-        }
+        size_t get_len_notes();
+        void note_on(size_t index);
+        void note_off(size_t index);
+        void set_program(uint8_t program);
+        void set_volume(float v);
+        void set_pitch(float v);
+        void set_modwheel(float v);
+        void set_polytouch(float v);
+        void set_reverb(float v);
+        void set_chorus(float v);
+        void set_sustain(float v);
+        void set_sostenuto(float v);
 
     private:
         constexpr uint8_t id(uint8_t first_id) { return first_id + channel_; }

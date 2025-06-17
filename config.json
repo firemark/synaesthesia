@@ -24,6 +24,9 @@
             "volume": 0.5,
             "pitch": 0.0,
             "polytouch": 0.0,
+            "modwheel": 0.0,
+            "reverb": 0.0,
+            "chorus": 0.0,
             "sustain": 0.0,
             "sostenuto": 0.0
         },
@@ -36,6 +39,9 @@
             "volume": 0.5,
             "pitch": 0.0,
             "polytouch": 0.0,
+            "modwheel": 0.0,
+            "reverb": 0.0,
+            "chorus": 0.0,
             "sustain": 0.0,
             "sostenuto": 0.0
         },
@@ -48,6 +54,9 @@
             "volume": 0.5,
             "pitch": 0.0,
             "polytouch": 0.0,
+            "modwheel": 0.0,
+            "reverb": 0.0,
+            "chorus": 0.0,
             "sustain": 0.0,
             "sostenuto": 0.0
         },
@@ -60,6 +69,9 @@
             "volume": 0.5,
             "pitch": 0.0,
             "polytouch": 0.0,
+            "modwheel": 0.0,
+            "reverb": 0.0,
+            "chorus": 0.0,
             "sustain": 0.0,
             "sostenuto": 0.0
         }

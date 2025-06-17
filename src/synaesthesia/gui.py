@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QPushButton,
     QSlider,
+    QCheckBox,
     QHBoxLayout,
     QVBoxLayout,
     QGraphicsView,
@@ -17,8 +18,6 @@ from PyQt5.QtWidgets import (
     QGridLayout,
 )
 
-from synaesthesia.colors import MaskConfig
-from synaesthesia.music import Music, MusicBox
 from synaesthesia.instruments import INSTRUMENTS, INSTRUMENTS_LIST, INSTRUMENTS_REVERSE
 
 STYLE = """
@@ -59,6 +58,14 @@ QSlider::handle {
 
 QSlider::sub-page {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8CCDEB, stop:1 #648DB3);
+}
+
+QCheckBox::indicator {
+    border: 1px solid #8CCDEB;
+    color: #8CCDEB;
+}
+QCheckBox::indicator::checked {
+    background-color: #8CCDEB;
 }
 """
 
@@ -131,7 +138,7 @@ class MainWindow(QMainWindow):
         self.signal_image_clicked.connect(self.crop)
 
     def resizeEvent(self, ev):
-        self.image_widget.setFixedWidth(self.width() // 2)
+        self.image_widget.setFixedWidth(self.width() // 3)
 
     def crop(self, x, y):
         self.socket.write(f"screen crop {x} {y}".encode())
@@ -150,7 +157,7 @@ class LabelWidget(QWidget):
         self,
         label: str,
         widget_factory: Callable[[QWidget], QWidget],
-        value_cb: Callable[[Any], None],
+        value_cb: Callable[[Any], str],
         parent=None,
     ):
         super().__init__(parent)
@@ -262,6 +269,10 @@ class MusicWidget(QWidget):
 
             return f
 
+        def make_checkbox_callback(key):
+
+            return f
+
         def make_dial_color(key):
             factory = _make_dial(
                 min=0,
@@ -270,8 +281,6 @@ class MusicWidget(QWidget):
                 cb=make_callback(key),
             )
             return factory(parent=self)
-
-        value_cb = lambda v: f"{v:d}%"
 
         def make_dial_music(name, key, min=0, max=100):
             return LabelWidget(
@@ -282,8 +291,20 @@ class MusicWidget(QWidget):
                     value=int(config[key] * 100),
                     cb=make_callback(key),
                 ),
-                value_cb=value_cb,
+                value_cb=lambda v: f"{v:d}%",
             )
+
+        def make_checkbox_music(name, key, min=0, max=100):
+            def f(v):
+                vv = 1.0 if v == Qt.Checked else 0.0
+                self._socket("music_" + self._name, key, str(vv))
+                config[key] = str(vv)
+
+            widget = QCheckBox(name, parent=self)
+            widget.setTristate(False)
+            widget.setCheckState(Qt.Checked if config[key] > 0.5 else Qt.Unchecked)
+            widget.stateChanged.connect(f)
+            return widget
 
         color_layout = QVBoxLayout()
         color_layout.addWidget(make_dial_color("h"))
@@ -291,13 +312,19 @@ class MusicWidget(QWidget):
         color_layout.addWidget(make_dial_color("s"))
         color_layout.addWidget(self.select)
 
+        checkbox_layout = QVBoxLayout()
+        checkbox_layout.addWidget(make_checkbox_music("Sustain", "sustain"))
+        checkbox_layout.addWidget(make_checkbox_music("Sostenuto", "sostenuto"))
+
         layout = QHBoxLayout()
         layout.addLayout(color_layout)
+        layout.addLayout(checkbox_layout)
         layout.addWidget(make_dial_music("Volume", "volume"))
         layout.addWidget(make_dial_music("Polytouch", "polytouch"))
         layout.addWidget(make_dial_music("Pitch", "pitch", min=-100))
-        layout.addWidget(make_dial_music("Sustain", "sustain"))
-        layout.addWidget(make_dial_music("Sostenuto", "sostenuto"))
+        layout.addWidget(make_dial_music("Modwheel", "modwheel"))
+        layout.addWidget(make_dial_music("Reverb", "reverb"))
+        layout.addWidget(make_dial_music("Chorus", "chorus"))
         layout.setAlignment(Qt.AlignLeft)
         self.setLayout(layout)
 

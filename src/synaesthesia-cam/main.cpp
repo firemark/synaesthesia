@@ -108,6 +108,9 @@ namespace syna
                 .volume = music["volume"].asFloat(),
                 .pitch = music["pitch"].asFloat(),
                 .polytouch = music["polytouch"].asFloat(),
+                .modwheel = music["modwheel"].asFloat(),
+                .reverb = music["reverb"].asFloat(),
+                .chorus = music["chorus"].asFloat(),
                 .sustain = music["sustain"].asFloat(),
                 .sostenuto = music["sostenuto"].asFloat(),
             };
@@ -216,6 +219,18 @@ namespace syna::conn
                     else if (parts[1] == "sostenuto")
                     {
                         music.set_sostenuto(val);
+                    }
+                    else if (parts[1] == "chorus")
+                    {
+                        music.set_chorus(val);
+                    }
+                    else if (parts[1] == "modwheel")
+                    {
+                        music.set_modwheel(val);
+                    }
+                    else if (parts[1] == "reverb")
+                    {
+                        music.set_reverb(val);
                     }
                     else if (parts[1] == "h")
                     {
