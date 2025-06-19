@@ -27,8 +27,7 @@ classifiers = [
 ]
 
 [project.scripts]
-syn-run = "synaesthesia.run:main"
-syn-camera = "synaesthesia.qt:main"
+syn-gui = "synaesthesia.qt:main"
 
 #[project.gui-scripts]
 #spam-gui = "spam:main_gui"
