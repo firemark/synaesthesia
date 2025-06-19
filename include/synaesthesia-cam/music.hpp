@@ -53,7 +53,15 @@ namespace syna
                   {65},
                   {67},
                   {69},
-                  {72}},
+                  {72},
+                  {74},
+                  {76},
+                  {77},
+                  {79},
+                  {81},
+                  {83},
+                  {87},
+              },
               channel_(config.channel)
         {
             set_program(config.program);
