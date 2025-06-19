@@ -4,10 +4,11 @@
 
 namespace syna
 {
-    Runner::Runner(MusicBox musicbox, std::unordered_map<std::string, MaskConfig> colors, int source) : musicbox_(musicbox), colors_(colors), camera_(source)
+    Runner::Runner(MusicBox musicbox, std::unordered_map<std::string, MaskConfig> colors, CameraConfig camera_config) //
+        : musicbox_(musicbox), colors_(colors), camera_(camera_config.source), camera_config_(camera_config)
     {
-        camera_.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
-        camera_.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
+        camera_.set(cv::CAP_PROP_FRAME_WIDTH, camera_config.width);
+        camera_.set(cv::CAP_PROP_FRAME_HEIGHT, camera_config.height);
         camera_.set(cv::CAP_PROP_BUFFERSIZE, 3);
         if (!camera_.isOpened())
         {
@@ -25,9 +26,20 @@ namespace syna
         {
             return frame;
         }
-        return frame;
 
-        // todo crop
+        if (camera_config_.flip)
+        {
+            cv::flip(frame, frame, camera_config_.flip);
+        }
+
+        if (camera_config_.crop.has_value())
+        {
+            auto &[p0, p1] = camera_config_.crop.value();
+            cv::Rect roi(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
+            frame = frame(roi);
+        }
+
+        return frame;
     }
 
     std::chrono::microseconds Runner::loop(cv::Mat &frame, std::chrono::microseconds time)

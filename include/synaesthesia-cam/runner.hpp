@@ -1,5 +1,7 @@
 #pragma once
 #include <mutex>
+#include <tuple>
+#include <optional>
 #include <unordered_map>
 #include <opencv2/core.hpp>
 #pragma GCC diagnostic push
@@ -12,16 +14,26 @@
 
 namespace syna
 {
+    struct Point { int x, y; };
+    struct CameraConfig
+    {
+        int source = 4;
+        int width = 1280;
+        int height = 720;
+        int flip = 0;
+        std::optional<std::tuple<Point, Point>> crop = {};
+    };
 
     class Runner
     {
     public:
-        Runner(MusicBox musicbox, std::unordered_map<std::string, MaskConfig> colors, int source = 4);
+        Runner(MusicBox musicbox, std::unordered_map<std::string, MaskConfig> colors, CameraConfig camera_config);
         cv::Mat get_frame();
         std::chrono::microseconds loop(cv::Mat &frame, std::chrono::microseconds time);
 
         MusicBox &musicbox() { return musicbox_; }
         MaskConfig &colors(const std::string &key) { return colors_.at(key); }
+        CameraConfig &camera_config() { return camera_config_; }
         std::mutex &mutex() { return mutex_; }
 
     private:
@@ -33,6 +45,7 @@ namespace syna
         MusicBox musicbox_;
         std::unordered_map<std::string, MaskConfig> colors_;
         cv::VideoCapture camera_;
+        CameraConfig camera_config_;
         std::mutex mutex_;
         bool fail_ = false;
     };

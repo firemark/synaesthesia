@@ -1,19 +1,18 @@
 {
     "period": 10.0,
-    "flip": 0,
     "midi": "warsztat",
     "camera_source": 0,
     "window_speed": 50,
-    "crop": {
-        "step": 0,
-        "p0": [
-            0,
-            0
-        ],
-        "p1": [
-            0,
-            0
-        ]
+    "camera": {
+        "source": 0,
+        "width": 1280,
+        "height": 720,
+        "flip": 0,
+        "crop": {
+            "on": false,
+            "p0": [0, 0],
+            "p1": [0, 0]
+        }
     },
     "music": {
         "red": {

@@ -70,20 +70,40 @@ QCheckBox::indicator::checked {
 """
 
 
+class Crop:
+    def __init__(self):
+        self.step = 0
+        self.flip = 0
+        self.p0 = (0, 0)
+        self.p1 = (0, 0)
+
+
 class ImageScene(QGraphicsScene):
 
-    def __init__(self, signal):
+    def __init__(self, signal, crop):
         super().__init__()
         self.signal = signal
+        self.crop = crop
 
     def mousePressEvent(self, event):
         x = event.scenePos().x()
         y = event.scenePos().y()
-        self.signal.emit(x, y)
+
+        if self.crop.step == 0:
+            self.crop.p0 = (int(x), int(y))
+            self.crop.step = 1
+        elif self.crop.step == 1:
+            self.crop.p1 = (int(x), int(y))
+            self.crop.step = 2
+            self.signal.emit(*self.crop.p0, *self.crop.p1)
+        else:
+            self.crop.step = 0
+            self.signal.emit(0, 0, 0, 0)
+
 
 
 class MainWindow(QMainWindow):
-    signal_image_clicked = pyqtSignal(int, int)
+    signal_image_clicked = pyqtSignal(int, int, int, int)
 
     def __init__(self, filepath, config):
         super().__init__()
@@ -91,16 +111,20 @@ class MainWindow(QMainWindow):
 
         self.socket = QTcpSocket(self)
         self.socket.connectToHost(QHostAddress.LocalHost, 2137)
+        self.config = config
 
         def sck(*args):
             self.socket.write(" ".join(args).encode() + b"\n")
+            self.socket.flush()
 
         main_layout = QHBoxLayout()
         main_layout.setAlignment(Qt.AlignTop)
         self.main_widget = QWidget(parent=self)
         self.main_widget.setLayout(main_layout)
+        self._crop = Crop()
+        self._crop.step = 2 if self.config["camera"]["crop"]["on"] else 0
 
-        self.image_scene = ImageScene(self.signal_image_clicked)
+        self.image_scene = ImageScene(self.signal_image_clicked, self._crop)
         self.image_widget = QGraphicsView(self.image_scene, parent=self.main_widget)
         self.image_widget.setMinimumWidth(320)
         self.image_widget.setMinimumHeight(320)
@@ -147,8 +171,19 @@ class MainWindow(QMainWindow):
     def resizeEvent(self, ev):
         self.image_widget.setFixedWidth(self.width() // 3)
 
-    def crop(self, x, y):
-        self.socket.write(f"screen crop {x} {y}".encode())
+    def crop(self, x0, y0, x1, y1):
+        if x0 == y0 == x1 == y1 == 0:
+            self.config["camera"]["crop"] = {
+                "on": False,
+            }
+            self.socket.write(b"camera crop - -\n")
+        else:
+            self.config["camera"]["crop"] = {
+                "on": True,
+                "p0": [x0, y0],
+                "p1": [x1, y1],
+            }
+            self.socket.write(f"camera crop {x0} {y0} {x1} {y1}\n".encode())
 
     def show_image(self, url):
         pixmap = QPixmap(url)
@@ -249,9 +284,9 @@ class MusicBoxWidget(QWidget):
             json.dump(self.config, file, indent=4)
 
     def _flip(self, val):
-        self.socket("screen", "crop", "-", "-")
-        self.socket("screen", "flip", val)
-        self.config["flip"] = val
+        self.socket("camera", "crop", "-", "-")
+        self.socket("camera", "flip", str(val))
+        self.config["camera"]["flip"] = val
 
 
 class MusicWidget(QWidget):

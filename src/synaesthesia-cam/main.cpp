@@ -100,7 +100,7 @@ namespace syna
 
             MusicConfig music_config{
                 .channel = channel++,
-                .program = music["program"].asInt(),
+                .program = static_cast<uint8_t>(music["program"].asInt()),
                 .volume = music["volume"].asFloat(),
                 .pitch = music["pitch"].asFloat(),
                 .polytouch = music["polytouch"].asFloat(),
@@ -121,11 +121,30 @@ namespace syna
             color_configs.emplace(key, std::move(mask_config));
         }
 
+        auto &camera_root = root["camera"];
+        auto &crop_root = camera_root["crop"];
+        std::optional<std::tuple<Point, Point>> crop = {};
+        if (crop_root["on"].asBool())
+        {
+            auto &p0_json = crop_root["p0"];
+            auto &p1_json = crop_root["p1"];
+            Point p0{p0_json[0].asInt(), p0_json[1].asInt()};
+            Point p1{p1_json[0].asInt(), p1_json[1].asInt()};
+            crop = {{std::move(p0), std::move(p1)}};
+        }
+        CameraConfig camera_config{
+            .source = camera_root.isMember("source") ? camera_root["source"].asInt() : 0,
+            .width = camera_root.isMember("width") ? camera_root["width"].asInt() : 1280,
+            .height = camera_root.isMember("height") ? camera_root["height"].asInt() : 720,
+            .flip = camera_root.isMember("flip") ? camera_root["flip"].asInt() : 0,
+            .crop = std::move(crop),
+        };
+
         auto period = std::chrono::seconds(root["period"].asInt());
         return std::make_shared<Runner>(
             MusicBox{period, std::move(musics)},
             std::move(color_configs),
-            root["camera_source"].asInt());
+            std::move(camera_config));
     }
 }
 
@@ -161,6 +180,8 @@ namespace syna::conn
                 }
 
                 auto without_newline = read_msg.substr(0, read_msg.find("\n"));
+                std::cerr << without_newline << std::endl;
+                std::cerr.flush();
                 read_msg.erase(0, n);
                 auto parts = string_split(without_newline, ' ');
                 if (parts.size() < 3)
@@ -178,11 +199,25 @@ namespace syna::conn
                         runner.musicbox().period(std::chrono::microseconds(count));
                     }
                 }
-                if (parts[0] == "screen")
+                if (parts[0] == "camera")
                 {
                     if (parts[1] == "flip")
                     {
-                        // TODO
+                        auto val = std::stoi(parts[2]);
+                        runner.camera_config().flip = val;
+                    }
+                    if (parts[1] == "crop")
+                    {
+                        if (parts.size() == 6)
+                        {
+                            Point p0{std::stoi(parts[2]), std::stoi(parts[3])};
+                            Point p1{std::stoi(parts[4]), std::stoi(parts[5])};
+                            runner.camera_config().crop = {{p0, p1}};
+                        }
+                        else
+                        {
+                            runner.camera_config().crop = {};
+                        }
                     }
                 }
 
