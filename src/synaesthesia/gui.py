@@ -307,7 +307,7 @@ class MusicWidget(QWidget):
             def f(v):
                 vv = v / 100
                 self._socket("music_" + self._name, key, str(vv))
-                config[key] = str(vv)
+                config[key] = vv
 
             return f
 
@@ -336,7 +336,7 @@ class MusicWidget(QWidget):
             def f(v):
                 vv = 1.0 if v == Qt.Checked else 0.0
                 self._socket("music_" + self._name, key, str(vv))
-                config[key] = str(vv)
+                config[key] = vv
 
             widget = QCheckBox(name, parent=self)
             widget.setTristate(False)

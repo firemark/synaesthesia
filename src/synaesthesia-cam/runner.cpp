@@ -79,17 +79,18 @@ namespace syna
 
     Mask Runner::color_to_mask(const cv::Mat &h, const cv::Mat &s, const cv::Mat &v, const MaskConfig &config)
     {
-        auto next_h = config.h + 0.2;
+        static constexpr float RANGE = 0.2f;
         cv::Mat mask = cv::Mat::ones(h.size(), CV_8UC1);
-        mask &= v > config.v;
+        mask &= (v > config.v) & (v < config.v + RANGE);
         mask &= s > config.s;
+        auto next_h = config.h + RANGE;
         if (next_h > 1.0)
         {
             mask &= (h > config.h) | (h < next_h - 1.0);
         }
         else
         {
-            mask &= (h > config.h) & (h < config.h);
+            mask &= (h > config.h) & (h < next_h);
         }
 
         static cv::Mat kernel = getStructuringElement(cv::MORPH_ELLIPSE,
