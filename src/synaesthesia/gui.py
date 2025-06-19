@@ -166,7 +166,7 @@ class MainWindow(QMainWindow):
         self.timer.start(config["window_speed"])
 
     def timeout(self):
-        self.show_image("/dev/shm/warsztat.jpg")
+        self.show_image("/dev/shm/warsztat.png")
 
     def resizeEvent(self, ev):
         self.image_widget.setFixedWidth(self.width() // 3)

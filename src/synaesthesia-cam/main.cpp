@@ -32,7 +32,7 @@ namespace syna
                 std::lock_guard lock(runner->mutex());
                 time = runner->loop(frame, time);
             }
-            cv::imwrite("/dev/shm/warsztat.jpg", frame);
+            cv::imwrite("/dev/shm/warsztat.png", frame);
             auto end = get_time();
             time += std::chrono::duration_cast<decltype(time)>(end - begin);
         }
