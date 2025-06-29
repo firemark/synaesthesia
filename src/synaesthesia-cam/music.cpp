@@ -52,6 +52,12 @@ namespace syna
         }
     }
 
+    void Music::set_bank(uint16_t bank)
+    {
+        std::vector<uint8_t> msg = {id(0xE0), 0, bank >> 7, bank & 0x7F};
+        midi_->sendMessage(&msg);
+    }
+
     void Music::set_program(uint8_t program)
     {
         std::vector<uint8_t> msg = {id(0xC0), program};
@@ -73,7 +79,7 @@ namespace syna
     void Music::set_modwheel(float v)
     {
         auto vv = val_to_int<0x3FFF, uint16_t>(v);
-        std::vector<uint8_t> msg = {id(0xE0), vv >> 7, vv & 0x7F};
+        std::vector<uint8_t> msg = {id(0xE0), 1, vv >> 7, vv & 0x7F};
         midi_->sendMessage(&msg);
     }
 

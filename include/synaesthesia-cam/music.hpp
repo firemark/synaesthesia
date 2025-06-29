@@ -29,6 +29,7 @@ namespace syna
 
     struct MusicConfig
     {
+        uint16_t bank;
         uint8_t channel;
         uint8_t program;
         float volume;
@@ -64,6 +65,7 @@ namespace syna
               },
               channel_(config.channel)
         {
+            set_bank(config.bank);
             set_program(config.program);
             set_volume(config.volume);
             set_pitch(config.pitch);
@@ -78,6 +80,7 @@ namespace syna
         size_t get_len_notes();
         void note_on(size_t index);
         void note_off(size_t index);
+        void set_bank(uint16_t program);
         void set_program(uint8_t program);
         void set_volume(float v);
         void set_pitch(float v);

@@ -41,6 +41,7 @@ namespace syna {
             auto &color = music["color"];
 
             MusicConfig music_config{
+                .bank = static_cast<uint16_t>(music["bank"].asInt()),
                 .channel = channel++,
                 .program = static_cast<uint8_t>(music["program"].asInt()),
                 .volume = music["volume"].asFloat(),
